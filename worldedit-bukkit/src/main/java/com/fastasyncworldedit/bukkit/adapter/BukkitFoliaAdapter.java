@@ -7,6 +7,7 @@ import com.sk89q.worldedit.bukkit.adapter.Refraction;
 import com.sk89q.worldedit.entity.Entity;
 import com.sk89q.worldedit.regions.Region;
 import org.bukkit.World;
+import org.bukkit.util.BoundingBox;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -71,10 +72,83 @@ public class BukkitFoliaAdapter {
             MethodHandle ifInRegion = guardWithTest(isInRegion, ifTrue, ifFalse);
             MethodHandle iterate = iteratedLoop(null, newArrayListHandle, dropArguments(ifInRegion, 2, Iterable.class));
             return filterArguments(iterate, 0, getEntities);
-        } catch (Throwable t) {
-            SneakyThrow.sneaky(t);
-            return null;
+        } catch (Throwable primary) {
+            try {
+                MethodHandles.Lookup lookup = MethodHandles.lookup();
+                return lookup.findStatic(
+                        BukkitFoliaAdapter.class,
+                        "getEntitiesFallback",
+                        methodType(List.class, World.class, Region.class)
+                );
+            } catch (Throwable t) {
+                SneakyThrow.sneaky(primary);
+                return null;
+            }
         }
+    }
+
+    /**
+     * Fallback that uses Bukkit API only (Folia-safe in practice):
+     * - If region == null, returns all entities (World#getEntities()).
+     * - If region != null, uses a bounding box scan and then filters with Region#contains.
+     */
+    @SuppressWarnings("unused")
+    private static List<Entity> getEntitiesFallback(World world, Region region) {
+        List<Entity> out = new ArrayList<>();
+
+        // No region -> return all entities
+        if (region == null) {
+            for (org.bukkit.entity.Entity bukkit : world.getEntities()) {
+                out.add(BukkitAdapter.adapt(bukkit));
+            }
+            return out;
+        }
+
+        // Some Region impls may leave min/max null until first use; if so, do a safe full scan + precise filter
+        if (region.getMinimumPoint() == null || region.getMaximumPoint() == null) {
+            for (org.bukkit.entity.Entity bukkit : world.getEntities()) {
+                org.bukkit.Location loc = bukkit.getLocation();
+                if (region.contains(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
+                    out.add(BukkitAdapter.adapt(bukkit));
+                }
+            }
+            return out;
+        }
+
+        // Build a coarse AABB, then filter precisely with Region#contains
+        int minX = region.getMinimumPoint().x();
+        int minY = region.getMinimumPoint().y();
+        int minZ = region.getMinimumPoint().z();
+        int maxX = region.getMaximumPoint().x();
+        int maxY = region.getMaximumPoint().y();
+        int maxZ = region.getMaximumPoint().z();
+
+        double bxMinX = Math.min(minX, maxX);
+        double bxMinY = Math.min(minY, maxY);
+        double bxMinZ = Math.min(minZ, maxZ);
+        double bxMaxX = Math.max(minX, maxX) + 1.0;
+        double bxMaxY = Math.max(minY, maxY) + 1.0;
+        double bxMaxZ = Math.max(minZ, maxZ) + 1.0;
+
+        try {
+            bxMinY = Math.max(bxMinY, world.getMinHeight());
+            bxMaxY = Math.min(bxMaxY, world.getMaxHeight());
+        } catch (Throwable ignored) {
+            // Leave unclamped on platforms without these methods
+        }
+
+        org.bukkit.util.BoundingBox box = new org.bukkit.util.BoundingBox(
+                bxMinX, bxMinY, bxMinZ,
+                bxMaxX, bxMaxY, bxMaxZ
+        );
+
+        for (org.bukkit.entity.Entity bukkit : world.getNearbyEntities(box)) {
+            org.bukkit.Location loc = bukkit.getLocation();
+            if (region.contains(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
+                out.add(BukkitAdapter.adapt(bukkit));
+            }
+        }
+        return out;
     }
 
 }
