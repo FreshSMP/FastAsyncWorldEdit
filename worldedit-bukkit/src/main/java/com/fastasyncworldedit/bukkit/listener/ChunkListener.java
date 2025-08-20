@@ -13,7 +13,6 @@ import org.apache.logging.log4j.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -40,10 +39,8 @@ import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.inventory.FurnaceBurnEvent;
 import org.bukkit.event.inventory.FurnaceSmeltEvent;
-import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
-import org.bukkit.util.Vector;
 
 /**
  * @deprecated FAWE is not necessarily the tool you want to use to limit certain tick actions, e.g. fireworks or elytra flying.
@@ -63,29 +60,43 @@ public abstract class ChunkListener implements Listener {
             PluginManager plm = Bukkit.getPluginManager();
             Plugin plugin = Fawe.<FaweBukkit>platform().getPlugin();
             plm.registerEvents(this, plugin);
-            TaskManager.taskManager().repeat(() -> {
-                Location tmpLoc = lastCancelPos;
-                if (tmpLoc != null) {
-                    LOGGER.info("[FAWE Tick Limiter] Detected and cancelled physics lag source at {}", tmpLoc);
-                }
-                rateLimit--;
-                physicsFreeze = false;
-                itemFreeze = false;
-                lastZ = Integer.MIN_VALUE;
-                physSkip = 0;
-                physCancelPair = Long.MIN_VALUE;
-                physCancel = false;
-                lastCancelPos = null;
+            final int interval = Settings.settings().TICK_LIMITER.INTERVAL;
+            TaskManager.taskManager().taskGlobal(new Runnable() {
+                private int ticks = 0;
 
-                counter.clear();
-                for (Long2ObjectMap.Entry<Boolean> entry : badChunks.long2ObjectEntrySet()) {
-                    long key = entry.getLongKey();
-                    int x = MathMan.unpairIntX(key);
-                    int z = MathMan.unpairIntY(key);
-                    counter.put(key, badLimit);
+                @Override
+                public void run() {
+                    TaskManager.taskManager().laterGlobal(this, 1);
+
+                    if (!Settings.settings().TICK_LIMITER.ENABLED) {
+                        return;
+                    }
+                    if (++ticks < interval) {
+                        return;
+                    }
+                    ticks = 0;
+
+                    Location tmpLoc = lastCancelPos;
+                    if (tmpLoc != null) {
+                        LOGGER.info("[FAWE Tick Limiter] Detected and cancelled physics lag source at {}", tmpLoc);
+                    }
+                    rateLimit--;
+                    physicsFreeze = false;
+                    itemFreeze = false;
+                    lastZ = Integer.MIN_VALUE;
+                    physSkip = 0;
+                    physCancelPair = Long.MIN_VALUE;
+                    physCancel = false;
+                    lastCancelPos = null;
+
+                    counter.clear();
+                    for (Long2ObjectMap.Entry<Boolean> entry : badChunks.long2ObjectEntrySet()) {
+                        long key = entry.getLongKey();
+                        counter.put(key, badLimit);
+                    }
+                    badChunks.clear();
                 }
-                badChunks.clear();
-            }, Settings.settings().TICK_LIMITER.INTERVAL);
+            });
         }
     }
 

@@ -28,11 +28,12 @@ public class RenderListener implements Listener {
 
     public RenderListener(Plugin plugin) {
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        TaskManager.taskManager().repeat(new Runnable() {
+        TaskManager.taskManager().taskGlobal(new Runnable() {
             private long last = 0;
 
             @Override
             public void run() {
+                TaskManager.taskManager().laterGlobal(this, 1);
                 if (views.isEmpty()) {
                     return;
                 }
@@ -76,7 +77,7 @@ public class RenderListener implements Listener {
                     }
                 }
             }
-        }, 1);
+        });
     }
 
     private void setViewDistance(Player player, int value) {

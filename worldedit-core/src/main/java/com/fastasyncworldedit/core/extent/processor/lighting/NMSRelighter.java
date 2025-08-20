@@ -903,7 +903,7 @@ public class NMSRelighter implements Relighter {
             queue.flush();
             finished.set(true);
         } else {
-            TaskManager.taskManager().sync(new RunnableVal<>() {
+            TaskManager.taskManager().syncGlobal(new RunnableVal<>() {
                 @Override
                 public void run(Object value) {
                     queue.flush();
@@ -940,7 +940,7 @@ public class NMSRelighter implements Relighter {
         if (Settings.settings().LIGHTING.ASYNC) {
             runnable.run();
         } else {
-            TaskManager.taskManager().sync(runnable);
+            TaskManager.taskManager().syncGlobal(runnable);
         }
     }
 

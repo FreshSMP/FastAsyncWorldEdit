@@ -125,7 +125,7 @@ public class NMSAdapter implements FAWEPlatformAdapterImpl {
         if (layer < 0 || layer >= sections.length) {
             return false;
         }
-        if (Fawe.isMainThread()) {
+        if (Fawe.isTickThread()) {
             return ReflectionUtils.compareAndSet(sections, expected, value, layer);
         }
         StampLockHolder holder = new StampLockHolder();

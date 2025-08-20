@@ -714,11 +714,12 @@ public class EditSession extends PassthroughExtent implements AutoCloseable {
                 this.history = false;
             }
         } else {
-            if (this.history) {
+            if (!this.history) {
                 if (this.changeSet == null) {
                     throw new IllegalArgumentException("History was never provided, cannot enable");
                 }
                 enableHistory(this.changeSet);
+                this.history = true;
             }
         }
     }
@@ -1224,11 +1225,12 @@ public class EditSession extends PassthroughExtent implements AutoCloseable {
     public void setTrackingHistory(boolean trackHistory) {
         //FAWE start
         if (trackHistory) {
-            if (this.history) {
+            if (!this.history) {
                 if (this.changeSet == null) {
                     throw new IllegalStateException("No ChangeSetExtent is available");
                 }
                 enableHistory(this.changeSet);
+                this.history = true;
             }
         } else {
             if (this.history) {
@@ -1375,14 +1377,14 @@ public class EditSession extends PassthroughExtent implements AutoCloseable {
         }
         // Enqueue it
         if (getChangeSet() != null) {
-            if (Settings.settings().HISTORY.COMBINE_STAGES) {
-                ((AbstractChangeSet) getChangeSet()).closeAsync();
-            } else {
-                try {
+            try {
+                if (Settings.settings().HISTORY.COMBINE_STAGES) {
+                    ((AbstractChangeSet) getChangeSet()).close();
+                } else {
                     getChangeSet().close();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
                 }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
     }
@@ -4062,7 +4064,7 @@ public class EditSession extends PassthroughExtent implements AutoCloseable {
             }
             if (containsAny) {
                 changes++;
-                TaskManager.taskManager().sync(new RunnableVal<Object>() {
+                TaskManager.taskManager().syncGlobal(new RunnableVal<Object>() {
                     @Override
                     public void run(Object value) {
                         regenerateChunk(cx, cz, biome, seed);

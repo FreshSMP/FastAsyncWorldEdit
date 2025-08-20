@@ -1,5 +1,6 @@
 package com.sk89q.worldedit.bukkit.adapter.impl.fawe.v1_21_5;
 
+import ca.spottedleaf.moonrise.common.util.TickThread;
 import ca.spottedleaf.moonrise.patches.chunk_system.level.entity.ChunkEntitySlices;
 import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager;
 import com.fastasyncworldedit.bukkit.adapter.CachedBukkitAdapter;
@@ -9,8 +10,10 @@ import com.fastasyncworldedit.core.Fawe;
 import com.fastasyncworldedit.core.FaweCache;
 import com.fastasyncworldedit.core.math.BitArrayUnstretched;
 import com.fastasyncworldedit.core.math.IntPair;
+import com.fastasyncworldedit.core.util.FoliaSupport;
 import com.fastasyncworldedit.core.util.MathMan;
 import com.fastasyncworldedit.core.util.TaskManager;
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldedit.bukkit.adapter.BukkitImplAdapter;
 import com.sk89q.worldedit.bukkit.adapter.Refraction;
@@ -25,7 +28,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.IdMap;
 import net.minecraft.core.Registry;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
@@ -76,6 +78,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 import static net.minecraft.core.registries.Registries.BIOME;
 
@@ -264,7 +267,8 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
                 );
             }
         }
-        return CompletableFuture.supplyAsync(() -> TaskManager.taskManager().sync(() -> serverLevel.getChunk(chunkX, chunkZ)));
+        return CompletableFuture.supplyAsync(() -> TaskManager.taskManager().syncAt(() -> serverLevel.getChunk(chunkX, chunkZ),
+                BukkitAdapter.adapt(serverLevel.getWorld()), chunkX, chunkZ));
     }
 
     private static LevelChunk toLevelChunk(Chunk chunk) {
@@ -277,7 +281,7 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
             if (nmsChunk != null) {
                 return nmsChunk;
             }
-            if (Fawe.isMainThread()) {
+            if (Fawe.isTickThread()) {
                 return serverLevel.getChunk(chunkX, chunkZ);
             }
             return null;
@@ -293,7 +297,7 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
                 return nmsChunk;
             }
             // Avoid "async" methods from the main thread.
-            if (Fawe.isMainThread()) {
+            if (Fawe.isTickThread()) {
                 return serverLevel.getChunk(chunkX, chunkZ);
             }
             return null;
@@ -302,9 +306,14 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
 
     private static void addTicket(ServerLevel serverLevel, int chunkX, int chunkZ) {
         // Ensure chunk is definitely loaded before applying a ticket
-        io.papermc.paper.util.MCUtil.MAIN_EXECUTOR.execute(() -> serverLevel
+        final Runnable addChunkTicket = () -> serverLevel
                 .getChunkSource()
-                .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0));
+                .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0);
+        if (FoliaSupport.isFolia()) {
+            addChunkTicket.run();
+            return;
+        }
+        io.papermc.paper.util.MCUtil.MAIN_EXECUTOR.execute(addChunkTicket);
     }
 
     public static ChunkHolder getPlayerChunk(ServerLevel nmsWorld, final int chunkX, final int chunkZ) {
@@ -337,7 +346,7 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         if (lockHolder.chunkLock == null) {
             return;
         }
-        MinecraftServer.getServer().execute(() -> {
+        Runnable sendTask = () -> {
             try {
                 ChunkPos pos = levelChunk.getPos();
                 ClientboundLevelChunkWithLightPacket packet;
@@ -362,7 +371,8 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
             } finally {
                 NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
             }
-        });
+        };
+        task(sendTask, nmsWorld, chunkX, chunkZ);
     }
 
     private static List<ServerPlayer> nearbyPlayers(ServerLevel serverLevel, ChunkPos coordIntPair) {
@@ -653,6 +663,21 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         } catch (IllegalAccessException e) {
             throw new RuntimeException("Failed to lookup entities [PAPER=false]", e);
         }
+    }
+
+    public static void task(Runnable task, ServerLevel level, int chunkX, int chunkZ) {
+        TaskManager.taskManager().task(task, BukkitAdapter.adapt(level.getWorld()), chunkX, chunkZ);
+    }
+
+    public static <T> T sync(Supplier<T> task, ServerLevel level, int chunkX, int chunkZ) {
+        return TaskManager.taskManager().syncAt(task, BukkitAdapter.adapt(level.getWorld()), chunkX, chunkZ);
+    }
+
+    public static boolean isTickThreadFor(LevelChunk levelChunk) {
+        if (FoliaSupport.isFolia()) {
+            return TickThread.isTickThreadFor(levelChunk.level, levelChunk.locX, levelChunk.locZ);
+        }
+        return Fawe.isTickThread();
     }
 
     record FakeIdMapBlock(int size) implements IdMap<net.minecraft.world.level.block.state.BlockState> {

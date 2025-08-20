@@ -572,7 +572,7 @@ public abstract class AbstractPlayerActor implements Actor, Player, Cloneable {
                     clipboardLoading.release();
                 }
             });
-            if (Fawe.isMainThread()) {
+            if (Fawe.isTickThread()) {
                 return;
             }
             fut.get();
@@ -722,7 +722,7 @@ public abstract class AbstractPlayerActor implements Actor, Player, Cloneable {
         if (async) {
             asyncNotifyQueue.run(wrapped);
         } else {
-            TaskManager.taskManager().taskNow(wrapped, false);
+            TaskManager.taskManager().taskGlobal(wrapped);
         }
         return true;
     }

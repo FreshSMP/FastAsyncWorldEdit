@@ -96,7 +96,15 @@ public abstract class QueueHandler implements Trimable, Runnable {
     private long allocate = 50;
 
     protected QueueHandler() {
-        TaskManager.taskManager().repeat(this, 1);
+        TaskManager.taskManager().taskGlobal(this::tickLoop);
+    }
+
+    private void tickLoop() {
+        try {
+            run();
+        } finally {
+            TaskManager.taskManager().laterGlobal(this::tickLoop, 1);
+        }
     }
 
     @ApiStatus.Internal
@@ -106,8 +114,8 @@ public abstract class QueueHandler implements Trimable, Runnable {
 
     @Override
     public void run() {
-        if (!Fawe.isMainThread()) {
-            throw new IllegalStateException("Not main thread");
+        if (!Fawe.isTickThread()) {
+            throw new IllegalStateException("Not ticking thread");
         }
         if (!syncTasks.isEmpty()) {
             long currentAllocate = getAllocate();
@@ -328,7 +336,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
     }
 
     private <T> Future<T> sync(Runnable run, T value, Queue<FutureTask> queue) {
-        if (Fawe.isMainThread()) {
+        if (Fawe.isTickThread()) {
             run.run();
             return Futures.immediateFuture(value);
         }
@@ -339,7 +347,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
     }
 
     private <T> Future<T> sync(Runnable run, Queue<FutureTask> queue) {
-        if (Fawe.isMainThread()) {
+        if (Fawe.isTickThread()) {
             run.run();
             return Futures.immediateCancelledFuture();
         }
@@ -350,7 +358,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
     }
 
     private <T> Future<T> sync(Callable<T> call, Queue<FutureTask> queue) throws Exception {
-        if (Fawe.isMainThread()) {
+        if (Fawe.isTickThread()) {
             return Futures.immediateFuture(call.call());
         }
         final FutureTask<T> result = new FutureTask<>(call);
@@ -360,7 +368,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
     }
 
     private <T> Future<T> sync(Supplier<T> call, Queue<FutureTask> queue) {
-        if (Fawe.isMainThread()) {
+        if (Fawe.isTickThread()) {
             return Futures.immediateFuture(call.get());
         }
         final FutureTask<T> result = new FutureTask<>(call::get);

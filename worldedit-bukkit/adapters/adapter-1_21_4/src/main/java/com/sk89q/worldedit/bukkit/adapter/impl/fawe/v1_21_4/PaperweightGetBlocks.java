@@ -13,6 +13,7 @@ import com.fastasyncworldedit.core.nbt.FaweCompoundTag;
 import com.fastasyncworldedit.core.queue.IChunkSet;
 import com.fastasyncworldedit.core.util.MathMan;
 import com.fastasyncworldedit.core.util.NbtUtils;
+import com.fastasyncworldedit.core.util.TaskManager;
 import com.fastasyncworldedit.core.util.collection.AdaptedMap;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.bukkit.BukkitEntity;
@@ -196,9 +197,9 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
 
     @Override
     public FaweCompoundTag tile(final int x, final int y, final int z) {
-        BlockEntity blockEntity = getChunk().getBlockEntity(new BlockPos((x & 15) + (
-                chunkX << 4), y, (z & 15) + (
-                chunkZ << 4)));
+        BlockEntity blockEntity = PaperweightPlatformAdapter.sync(() -> getChunk().getBlockEntity(
+                new BlockPos((x & 15) + (chunkX << 4), y, (z & 15) + (chunkZ << 4))),
+                serverLevel, chunkX, chunkZ);
         if (blockEntity == null) {
             return null;
         }
@@ -208,7 +209,10 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
 
     @Override
     public Map<BlockVector3, FaweCompoundTag> tiles() {
-        Map<BlockPos, BlockEntity> nmsTiles = getChunk().getBlockEntities();
+        Map<BlockPos, BlockEntity> nmsTiles = PaperweightPlatformAdapter.sync(
+                () -> getChunk().getBlockEntities(),
+                serverLevel, chunkX, chunkZ
+        );
         if (nmsTiles.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -531,8 +535,6 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                                     load(layerNo)
                             )) {
                                 this.reset(layerNo);
-                        /*} else if (lock.isModified()) {
-                            this.reset(layerNo);*/
                             }
                         } finally {
                             sectionLock.writeLock().unlock();
@@ -590,19 +592,19 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
             int bx = chunkX << 4;
             int bz = chunkZ << 4;
 
-            // Call beacon deactivate events here synchronously
-            // list will be null on spigot, so this is an implicit isPaper check
+            final com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(nmsWorld.getWorld());
+
             if (beacons != null && !beacons.isEmpty()) {
                 final List<BlockEntity> finalBeacons = beacons;
 
                 syncTasks = new Runnable[4];
 
-                syncTasks[3] = () -> {
+                syncTasks[3] = () -> TaskManager.taskManager().task(() -> {
                     for (BlockEntity beacon : finalBeacons) {
                         BeaconBlockEntity.playSound(beacon.getLevel(), beacon.getBlockPos(), SoundEvents.BEACON_DEACTIVATE);
                         new BeaconDeactivatedEvent(CraftBlock.at(beacon.getLevel(), beacon.getBlockPos())).callEvent();
                     }
-                };
+                }, weWorld, chunkX, chunkZ);
             }
 
             Set<UUID> entityRemoves = set.getEntityRemoves();
@@ -611,7 +613,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                     syncTasks = new Runnable[3];
                 }
 
-                syncTasks[2] = () -> {
+                syncTasks[2] = () -> TaskManager.taskManager().task(() -> {
                     Set<UUID> entitiesRemoved = new HashSet<>();
                     final List<Entity> entities = PaperweightPlatformAdapter.getEntities(nmsChunk);
 
@@ -637,7 +639,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                     // Only save entities that were actually removed to history
                     set.getEntityRemoves().clear();
                     set.getEntityRemoves().addAll(entitiesRemoved);
-                };
+                }, weWorld, chunkX, chunkZ);
             }
 
             Collection<FaweCompoundTag> entities = set.entities();
@@ -646,7 +648,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                     syncTasks = new Runnable[2];
                 }
 
-                syncTasks[1] = () -> {
+                syncTasks[1] = () -> TaskManager.taskManager().task(() -> {
                     Iterator<FaweCompoundTag> iterator = entities.iterator();
                     while (iterator.hasNext()) {
                         final FaweCompoundTag nativeTag = iterator.next();
@@ -691,7 +693,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                             }
                         }
                     }
-                };
+                }, weWorld, chunkX, chunkZ);
             }
 
             // set tiles
@@ -701,7 +703,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                     syncTasks = new Runnable[1];
                 }
 
-                syncTasks[0] = () -> {
+                syncTasks[0] = () -> TaskManager.taskManager().task(() -> {
                     for (final Map.Entry<BlockVector3, FaweCompoundTag> entry : tiles.entrySet()) {
                         final FaweCompoundTag nativeTag = entry.getValue();
                         final BlockVector3 blockHash = entry.getKey();
@@ -725,7 +727,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                             }
                         }
                     }
-                };
+                }, weWorld, chunkX, chunkZ);
             }
 
             Runnable callback;
@@ -733,9 +735,8 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 callback = null;
             } else {
                 int finalMask = bitMask != 0 ? bitMask : lightUpdate ? set.getBitMask() : 0;
-                callback = () -> {
-                    // Set Modified
-                    nmsChunk.setLightCorrect(true); // Set Modified
+                callback = () -> TaskManager.taskManager().task(() -> {
+                    nmsChunk.setLightCorrect(true);
                     nmsChunk.mustNotSave = false;
                     nmsChunk.markUnsaved();
                     // send to player
@@ -747,7 +748,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                     if (finalizer != null) {
                         finalizer.run();
                     }
-                };
+                }, weWorld, chunkX, chunkZ);
             }
             return handleCallFinalizer(syncTasks, callback, finalizer);
         }

@@ -127,7 +127,12 @@ public class AsyncPreloader implements Preloader, Runnable {
     }
 
     private void queueLoad(World world, BlockVector2 chunk) {
-        world.checkLoadedChunk(BlockVector3.at(chunk.x() << 4, 0, chunk.z() << 4));
+        final int cx = chunk.x();
+        final int cz = chunk.z();
+        TaskManager.taskManager().syncAt(() -> {
+            world.checkLoadedChunk(BlockVector3.at(cx << 4, 0, cz << 4));
+            return null;
+        }, world, cx, cz);
     }
 
 }

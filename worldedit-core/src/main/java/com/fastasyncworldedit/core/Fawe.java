@@ -129,15 +129,25 @@ public class Fawe {
         this.timer = new FaweTimer();
 
         // Delayed worldedit setup
-        TaskManager.taskManager().later(() -> {
+        TaskManager.taskManager().laterGlobal(() -> {
             try {
                 WEManager.weManager().addManagers(Fawe.this.implementation.getMaskManagers());
             } catch (Throwable ignored) {
             }
-        }, 0);
+        }, 1);
         TaskManager.taskManager().repeatAsync(MemUtil::checkAndSetApproachingLimit, 1);
 
-        TaskManager.taskManager().repeat(timer, 1);
+        TaskManager.taskManager().taskGlobal(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    timer.run();
+                } finally {
+                    TaskManager.taskManager().laterGlobal(this, 1);
+                }
+            }
+        });
+
         uuidKeyQueuedExecutorService = new KeyQueuedExecutorService<>(new ThreadPoolExecutor(
                 1,
                 Settings.settings().QUEUE.PARALLEL_THREADS,
@@ -206,8 +216,13 @@ public class Fawe {
         }
     }
 
+    @Deprecated
     public static boolean isMainThread() {
         return instance == null || instance.thread == Thread.currentThread();
+    }
+
+    public static boolean isTickThread() {
+        return instance == null || instance.implementation.isTickThread();
     }
 
     /**

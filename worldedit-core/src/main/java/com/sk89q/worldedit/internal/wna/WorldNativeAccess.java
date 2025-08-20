@@ -70,9 +70,9 @@ public interface WorldNativeAccess<NC, NBS, NP> {
                 if (tag != null) {
                     tag = tag.toBuilder()
                         .putString("id", baseBlock.getNbtId())
-                        .putInt("x", position.getX())
-                        .putInt("y", position.getY())
-                        .putInt("z", position.getZ())
+                        .putInt("x", position.x())
+                        .putInt("y", position.y())
+                        .putInt("z", position.z())
                         .build();
 
                     // update if TE changed as well

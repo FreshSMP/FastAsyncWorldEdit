@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 
@@ -104,10 +105,18 @@ public abstract class Regenerator {
     private void copyToWorld() {
         createSource();
         final long timeoutPerTick = TimeUnit.MILLISECONDS.toNanos(10);
-        int taskId = TaskManager.taskManager().repeat(() -> {
-            final long startTime = System.nanoTime();
-            runTasks(() -> System.nanoTime() - startTime < timeoutPerTick);
-        }, 1);
+        final AtomicBoolean stop = new AtomicBoolean(false);
+        TaskManager.taskManager().taskGlobal(new Runnable() {
+            @Override
+            public void run() {
+                if (stop.get()) {
+                    return;
+                }
+                final long startTime = System.nanoTime();
+                runTasks(() -> System.nanoTime() - startTime < timeoutPerTick);
+                TaskManager.taskManager().laterGlobal(this, 1);
+            }
+        });
         //Setting Blocks
         boolean genbiomes = options.shouldRegenBiomes();
         boolean hasBiome = options.hasBiomeType();
@@ -126,7 +135,7 @@ public abstract class Regenerator {
             });
         }
         target.setBlocks(region, pattern);
-        TaskManager.taskManager().cancel(taskId);
+        stop.set(true);
     }
 
     private abstract class ChunkwisePattern implements Pattern {

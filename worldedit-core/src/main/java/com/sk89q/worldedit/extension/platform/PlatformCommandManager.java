@@ -19,7 +19,6 @@
 
 package com.sk89q.worldedit.extension.platform;
 
-import com.fastasyncworldedit.core.Fawe;
 import com.fastasyncworldedit.core.configuration.Caption;
 import com.fastasyncworldedit.core.configuration.Settings;
 import com.fastasyncworldedit.core.extension.platform.binding.Bindings;
@@ -674,7 +673,11 @@ public final class PlatformCommandManager {
         Command cmd = optional.get();
         PermissionCondition queued = cmd.getCondition().as(PermissionCondition.class).orElse(null);
         if (queued != null && !queued.isQueued()) {
-            TaskManager.taskManager().taskNow(() -> handleCommandOnCurrentThread(event), Fawe.isMainThread());
+            if (actor instanceof Player player) {
+                TaskManager.taskManager().task(() -> handleCommandOnCurrentThread(event), player.getLocation());
+            } else {
+                // Work In Progress
+            }
             return;
         } else {
             actor.decline();

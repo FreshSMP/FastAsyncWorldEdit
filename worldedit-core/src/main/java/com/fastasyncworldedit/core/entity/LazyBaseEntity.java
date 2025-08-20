@@ -24,10 +24,10 @@ public class LazyBaseEntity extends BaseEntity {
         Supplier<LinCompoundTag> tmp = saveTag;
         if (tmp != null) {
             saveTag = null;
-            if (Fawe.isMainThread()) {
+            if (Fawe.isTickThread()) {
                 setNbt(tmp.get());
             } else {
-                setNbt(TaskManager.taskManager().sync(tmp));
+                setNbt(TaskManager.taskManager().syncGlobal(tmp));
             }
         }
         return super.getNbt();
