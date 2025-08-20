@@ -7,7 +7,6 @@ import com.sk89q.worldedit.bukkit.adapter.Refraction;
 import com.sk89q.worldedit.entity.Entity;
 import com.sk89q.worldedit.regions.Region;
 import org.bukkit.World;
-import org.bukkit.util.BoundingBox;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;

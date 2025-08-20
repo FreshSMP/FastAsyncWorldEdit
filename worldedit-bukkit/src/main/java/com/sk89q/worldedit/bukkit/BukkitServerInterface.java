@@ -24,6 +24,7 @@ import com.fastasyncworldedit.core.configuration.Settings;
 import com.fastasyncworldedit.core.extent.processor.PlacementStateProcessor;
 import com.fastasyncworldedit.core.extent.processor.lighting.RelighterFactory;
 import com.fastasyncworldedit.core.queue.IBatchProcessor;
+import com.fastasyncworldedit.core.util.TaskManager;
 import com.google.common.collect.Sets;
 import com.sk89q.bukkit.util.CommandInfo;
 import com.sk89q.bukkit.util.CommandRegistration;
@@ -135,7 +136,36 @@ public class BukkitServerInterface extends AbstractPlatform implements MultiUser
 
     @Override
     public int schedule(long delay, long period, Runnable task) {
-        return Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, task, delay, period);
+        TaskManager tm = TaskManager.taskManager();
+
+        int initial = (int) Math.max(0L, delay);
+        int repeat  = (int) Math.max(0L, period);
+
+        if (repeat <= 0) {
+            if (initial <= 0) {
+                tm.taskGlobal(task);
+            } else {
+                tm.laterGlobal(task, initial);
+            }
+            return 0;
+        }
+
+        final int safeRepeat = repeat;
+        final Runnable[] ref = new Runnable[1];
+        ref[0] = () -> {
+            try {
+                task.run();
+            } finally {
+                tm.laterGlobal(ref[0], safeRepeat);
+            }
+        };
+
+        if (initial <= 0) {
+            tm.taskGlobal(ref[0]);
+        } else {
+            tm.laterGlobal(ref[0], initial);
+        }
+        return 0;
     }
 
     @Override
