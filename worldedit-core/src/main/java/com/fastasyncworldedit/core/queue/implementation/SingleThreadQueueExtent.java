@@ -37,6 +37,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
+import com.fastasyncworldedit.core.util.FoliaSupport;
 
 /**
  * Single threaded implementation for IQueueExtent (still abstract) - Does not implement creation of
@@ -254,7 +255,9 @@ public class SingleThreadQueueExtent extends ExtentBatchProcessorHolder implemen
             }
         }
 
-        if (Fawe.isTickThread()) {
+        // FAWE start - Fix Folia compatibility: Always submit to queue handler in Folia
+        // In Folia, direct execution on tick threads can cause synchronization issues
+        if (Fawe.isTickThread() && !FoliaSupport.isFolia()) {
             V result = (V) chunk.call();
             if (result == null) {
                 return (V) (Future) Futures.immediateFuture(null);
@@ -262,6 +265,7 @@ public class SingleThreadQueueExtent extends ExtentBatchProcessorHolder implemen
                 return result;
             }
         }
+        // FAWE end
 
         return (V) Fawe.instance().getQueueHandler().submit(chunk);
     }
