@@ -675,13 +675,10 @@ public final class PlatformCommandManager {
         if (queued != null && !queued.isQueued()) {
             if (actor instanceof Player player) {
                 TaskManager.taskManager().task(() -> handleCommandOnCurrentThread(event), player.getLocation());
-            } else {
-                // Work In Progress
             }
             return;
-        } else {
-            actor.decline();
         }
+        actor.decline();
         actor.runAction(() -> {
             SessionKey key = actor.getSessionKey();
             if (key.isActive()) {
