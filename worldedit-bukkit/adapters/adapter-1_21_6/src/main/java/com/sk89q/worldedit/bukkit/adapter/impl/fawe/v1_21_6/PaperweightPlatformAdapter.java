@@ -23,6 +23,7 @@ import com.sk89q.worldedit.world.biome.BiomeTypes;
 import com.sk89q.worldedit.world.block.BlockState;
 import com.sk89q.worldedit.world.block.BlockTypesCache;
 import io.papermc.lib.PaperLib;
+import io.papermc.paper.util.MCUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.IdMap;
@@ -342,7 +343,7 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
             addChunkTicket.run();
             return;
         }
-        io.papermc.paper.util.MCUtil.MAIN_EXECUTOR.execute(addChunkTicket);
+        MCUtil.MAIN_EXECUTOR.execute(addChunkTicket);
     }
 
     public static ChunkHolder getPlayerChunk(ServerLevel nmsWorld, final int chunkX, final int chunkZ) {
