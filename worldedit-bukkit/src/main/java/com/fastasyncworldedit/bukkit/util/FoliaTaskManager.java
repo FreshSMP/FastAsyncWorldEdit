@@ -128,7 +128,7 @@ public class FoliaTaskManager extends TaskManager {
 
     @Override
     public <T> T syncGlobal(final Supplier<T> supplier) {
-        if (Bukkit.isPrimaryThread()) {
+        if (FoliaSupport.isTickThread()) {
             return supplier.get();
         }
         final FutureTask<T> task = new FutureTask<>(supplier::get);
