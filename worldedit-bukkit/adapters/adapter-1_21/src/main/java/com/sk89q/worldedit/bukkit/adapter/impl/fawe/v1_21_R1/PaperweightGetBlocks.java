@@ -345,7 +345,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
         if (createCopy) {
             if (copies.containsKey(copyKey)) {
                 throw new IllegalStateException("Copy key already used.");
-                }
+            }
             copies.put(copyKey, copy);
         }
         // Remove existing tiles. Create a copy so that we can remove blocks
