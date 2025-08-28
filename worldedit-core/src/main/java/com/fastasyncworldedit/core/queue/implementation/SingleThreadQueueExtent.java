@@ -255,8 +255,6 @@ public class SingleThreadQueueExtent extends ExtentBatchProcessorHolder implemen
             }
         }
 
-        // FAWE start - Fix Folia compatibility: Always submit to queue handler in Folia
-        // In Folia, direct execution on tick threads can cause synchronization issues
         if (Fawe.isTickThread() && !FoliaSupport.isFolia()) {
             V result = (V) chunk.call();
             if (result == null) {
@@ -265,7 +263,6 @@ public class SingleThreadQueueExtent extends ExtentBatchProcessorHolder implemen
                 return result;
             }
         }
-        // FAWE end
 
         return (V) Fawe.instance().getQueueHandler().submit(chunk);
     }

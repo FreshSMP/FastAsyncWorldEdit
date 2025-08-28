@@ -128,12 +128,9 @@ public class FoliaTaskManager extends TaskManager {
 
     @Override
     public <T> T syncGlobal(final Supplier<T> supplier) {
-        // FAWE start - Fix Folia compatibility: In Folia, there is no "primary thread"
-        // Instead, we need to check if we're on a tick thread and handle accordingly
         if (FoliaSupport.isTickThread()) {
             return supplier.get();
         }
-        // FAWE end
         final FutureTask<T> task = new FutureTask<>(supplier::get);
         Bukkit.getGlobalRegionScheduler().run(WorldEditPlugin.getInstance(), asTickConsumer(task));
         try {
