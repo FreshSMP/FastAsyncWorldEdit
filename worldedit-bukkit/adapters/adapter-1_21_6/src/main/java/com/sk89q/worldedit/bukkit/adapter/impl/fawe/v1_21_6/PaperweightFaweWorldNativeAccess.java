@@ -112,7 +112,6 @@ public class PaperweightFaweWorldNativeAccess implements WorldNativeAccess<Level
                     this.sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
             );
         }
-        // Since FAWE is... Async we need to do it on the main thread (wooooo.. :( )
         cache.insert(new CachedChange(levelChunk, blockPos, blockState));
         return blockState;
     }

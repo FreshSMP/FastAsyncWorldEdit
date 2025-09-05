@@ -32,7 +32,7 @@ public class ChangeExchangeCoordinator implements AutoCloseable {
             this.started = true;
             final int length = consumed.length;
             if (FoliaSupport.isFolia()) {
-                this.runner = new Thread(() -> this.runnerTask.accept(this.exchanger, new Change[length]), "FAWE undo");
+                this.runner = new Thread(() -> this.runnerTask.accept(this.exchanger, new Change[length]), "FAWE Un-Redo");
                 this.runner.setDaemon(true);
                 this.runner.start();
             } else {
