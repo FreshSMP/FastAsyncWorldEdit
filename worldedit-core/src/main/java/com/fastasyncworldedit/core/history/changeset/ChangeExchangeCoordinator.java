@@ -1,5 +1,6 @@
 package com.fastasyncworldedit.core.history.changeset;
 
+import com.fastasyncworldedit.core.util.FoliaSupport;
 import com.sk89q.worldedit.history.change.Change;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -30,12 +31,18 @@ public class ChangeExchangeCoordinator implements AutoCloseable {
         if (!this.started) {
             this.started = true;
             final int length = consumed.length;
-            this.runner = UNDO_VIRTUAL_THREAD_BUILDER
-                    .start(() -> this.runnerTask.accept(this.exchanger, new Change[length]));
+            if (FoliaSupport.isFolia()) {
+                this.runner = new Thread(() -> this.runnerTask.accept(this.exchanger, new Change[length]), "FAWE undo");
+                this.runner.setDaemon(true);
+                this.runner.start();
+            } else {
+                this.runner = UNDO_VIRTUAL_THREAD_BUILDER
+                        .start(() -> this.runnerTask.accept(this.exchanger, new Change[length]));
+            }
         }
         try {
-            // Allow a reasonable timeout in case of weirdness
-            return exchanger.exchange(consumed, 30, TimeUnit.SECONDS);
+            long timeoutSeconds = FoliaSupport.isFolia() ? 60 : 30;
+            return exchanger.exchange(consumed, timeoutSeconds, TimeUnit.SECONDS);
         } catch (InterruptedException | TimeoutException e) {
             this.runner.interrupt();
             Thread.currentThread().interrupt();
