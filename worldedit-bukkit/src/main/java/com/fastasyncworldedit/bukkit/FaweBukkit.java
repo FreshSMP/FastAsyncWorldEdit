@@ -24,6 +24,7 @@ import com.fastasyncworldedit.core.queue.implementation.QueueHandler;
 import com.fastasyncworldedit.core.queue.implementation.preloader.AsyncPreloader;
 import com.fastasyncworldedit.core.queue.implementation.preloader.Preloader;
 import com.fastasyncworldedit.core.regions.FaweMaskManager;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.fastasyncworldedit.core.util.WEManager;
 import com.fastasyncworldedit.core.util.image.ImageViewer;
@@ -310,14 +311,7 @@ public class FaweBukkit implements IFawe, Listener {
      * Initialize the scheduler based on whether Folia is available or not.
      */
     private void initializeScheduler() {
-        boolean foliaFound = false;
-        try {
-            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
-            foliaFound = true;
-        } catch (ClassNotFoundException ignored) {
-        }
-        
-        if (foliaFound) {
+        if (FoliaUtil.isFoliaServer()) {
             this.scheduler = new FoliaScheduler(this.plugin);
             LOGGER.info("Folia detected - using FoliaScheduler");
         } else {

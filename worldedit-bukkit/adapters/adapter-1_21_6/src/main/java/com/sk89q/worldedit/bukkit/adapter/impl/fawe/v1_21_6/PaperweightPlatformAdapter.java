@@ -9,6 +9,7 @@ import com.fastasyncworldedit.core.Fawe;
 import com.fastasyncworldedit.core.FaweCache;
 import com.fastasyncworldedit.core.math.BitArrayUnstretched;
 import com.fastasyncworldedit.core.math.IntPair;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.MathMan;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
@@ -330,7 +331,7 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
     }
 
     private static void addTicket(ServerLevel serverLevel, int chunkX, int chunkZ) {
-        boolean isFolia = isFoliaServer();
+        boolean isFolia = FoliaUtil.isFoliaServer();
         
         if (isFolia) {
             try {
@@ -355,19 +356,6 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         }
     }
     
-    /**
-     * Check if we're running on a Folia server.
-     * 
-     * @return true if running on Folia
-     */
-    private static boolean isFoliaServer() {
-        try {
-            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
 
     public static ChunkHolder getPlayerChunk(ServerLevel nmsWorld, final int chunkX, final int chunkZ) {
         ChunkMap chunkMap = nmsWorld.getChunkSource().chunkMap;
@@ -399,7 +387,7 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         if (lockHolder.chunkLock == null) {
             return;
         }
-        boolean isFolia = isFoliaServer();
+        boolean isFolia = FoliaUtil.isFoliaServer();
 
         if (isFolia) {
             try {

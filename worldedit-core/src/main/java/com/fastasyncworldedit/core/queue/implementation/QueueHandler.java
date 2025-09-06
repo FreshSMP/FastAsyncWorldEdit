@@ -11,6 +11,7 @@ import com.fastasyncworldedit.core.queue.IQueueChunk;
 import com.fastasyncworldedit.core.queue.IQueueExtent;
 import com.fastasyncworldedit.core.queue.Trimable;
 import com.fastasyncworldedit.core.queue.implementation.chunk.ChunkCache;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.MemUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.fastasyncworldedit.core.util.collection.CleanableThreadLocal;
@@ -107,7 +108,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
     @Override
     public void run() {
         // Check if we're running on Folia (which doesn't have a traditional main thread)
-        boolean isFolia = isFoliaServer();
+        boolean isFolia = FoliaUtil.isFoliaServer();
         
         if (!isFolia && !Fawe.isMainThread()) {
             throw new IllegalStateException("Not main thread");
@@ -130,19 +131,6 @@ public abstract class QueueHandler implements Trimable, Runnable {
         }
     }
     
-    /**
-     * Check if we're running on a Folia server.
-     * 
-     * @return true if running on Folia
-     */
-    private boolean isFoliaServer() {
-        try {
-            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
 
     /**
      * Get if the {@code blockingExecutor} is saturated with tasks or not. Under-utilisation implies the queue has space for
@@ -347,7 +335,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
 
     private <T> Future<T> sync(Runnable run, T value, Queue<FutureTask> queue) {
         // In Folia, always queue tasks since there's no traditional main thread
-        if (!isFoliaServer() && Fawe.isMainThread()) {
+        if (!FoliaUtil.isFoliaServer() && Fawe.isMainThread()) {
             run.run();
             return Futures.immediateFuture(value);
         }
@@ -359,7 +347,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
 
     private <T> Future<T> sync(Runnable run, Queue<FutureTask> queue) {
         // In Folia, always queue tasks since there's no traditional main thread
-        if (!isFoliaServer() && Fawe.isMainThread()) {
+        if (!FoliaUtil.isFoliaServer() && Fawe.isMainThread()) {
             run.run();
             return Futures.immediateCancelledFuture();
         }
@@ -371,7 +359,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
 
     private <T> Future<T> sync(Callable<T> call, Queue<FutureTask> queue) throws Exception {
         // In Folia, always queue tasks since there's no traditional main thread
-        if (!isFoliaServer() && Fawe.isMainThread()) {
+        if (!FoliaUtil.isFoliaServer() && Fawe.isMainThread()) {
             return Futures.immediateFuture(call.call());
         }
         final FutureTask<T> result = new FutureTask<>(call);
@@ -382,7 +370,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
 
     private <T> Future<T> sync(Supplier<T> call, Queue<FutureTask> queue) {
         // In Folia, always queue tasks since there's no traditional main thread
-        if (!isFoliaServer() && Fawe.isMainThread()) {
+        if (!FoliaUtil.isFoliaServer() && Fawe.isMainThread()) {
             return Futures.immediateFuture(call.get());
         }
         final FutureTask<T> result = new FutureTask<>(call::get);
