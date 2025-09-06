@@ -106,9 +106,13 @@ public abstract class QueueHandler implements Trimable, Runnable {
 
     @Override
     public void run() {
-        if (!Fawe.isMainThread()) {
+        // Check if we're running on Folia (which doesn't have a traditional main thread)
+        boolean isFolia = isFoliaServer();
+        
+        if (!isFolia && !Fawe.isMainThread()) {
             throw new IllegalStateException("Not main thread");
         }
+        
         if (!syncTasks.isEmpty()) {
             long currentAllocate = getAllocate();
 
@@ -123,6 +127,20 @@ public abstract class QueueHandler implements Trimable, Runnable {
             operate(syncWhenFree, last, getAllocate());
         } else {
             // trim??
+        }
+    }
+    
+    /**
+     * Check if we're running on a Folia server.
+     * 
+     * @return true if running on Folia
+     */
+    private boolean isFoliaServer() {
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
     }
 
@@ -328,7 +346,8 @@ public abstract class QueueHandler implements Trimable, Runnable {
     }
 
     private <T> Future<T> sync(Runnable run, T value, Queue<FutureTask> queue) {
-        if (Fawe.isMainThread()) {
+        // In Folia, always queue tasks since there's no traditional main thread
+        if (!isFoliaServer() && Fawe.isMainThread()) {
             run.run();
             return Futures.immediateFuture(value);
         }
@@ -339,7 +358,8 @@ public abstract class QueueHandler implements Trimable, Runnable {
     }
 
     private <T> Future<T> sync(Runnable run, Queue<FutureTask> queue) {
-        if (Fawe.isMainThread()) {
+        // In Folia, always queue tasks since there's no traditional main thread
+        if (!isFoliaServer() && Fawe.isMainThread()) {
             run.run();
             return Futures.immediateCancelledFuture();
         }
@@ -350,7 +370,8 @@ public abstract class QueueHandler implements Trimable, Runnable {
     }
 
     private <T> Future<T> sync(Callable<T> call, Queue<FutureTask> queue) throws Exception {
-        if (Fawe.isMainThread()) {
+        // In Folia, always queue tasks since there's no traditional main thread
+        if (!isFoliaServer() && Fawe.isMainThread()) {
             return Futures.immediateFuture(call.call());
         }
         final FutureTask<T> result = new FutureTask<>(call);
@@ -360,7 +381,8 @@ public abstract class QueueHandler implements Trimable, Runnable {
     }
 
     private <T> Future<T> sync(Supplier<T> call, Queue<FutureTask> queue) {
-        if (Fawe.isMainThread()) {
+        // In Folia, always queue tasks since there's no traditional main thread
+        if (!isFoliaServer() && Fawe.isMainThread()) {
             return Futures.immediateFuture(call.get());
         }
         final FutureTask<T> result = new FutureTask<>(call::get);

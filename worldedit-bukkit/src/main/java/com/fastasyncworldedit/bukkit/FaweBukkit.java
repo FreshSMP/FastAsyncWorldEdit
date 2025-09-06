@@ -12,6 +12,9 @@ import com.fastasyncworldedit.bukkit.regions.TownyFeature;
 import com.fastasyncworldedit.bukkit.regions.WorldGuardFeature;
 import com.fastasyncworldedit.bukkit.util.BukkitTaskManager;
 import com.fastasyncworldedit.bukkit.util.ItemUtil;
+import com.fastasyncworldedit.bukkit.util.scheduler.Scheduler;
+import com.fastasyncworldedit.bukkit.util.scheduler.BukkitScheduler;
+import com.fastasyncworldedit.bukkit.util.scheduler.FoliaScheduler;
 import com.fastasyncworldedit.bukkit.util.image.BukkitImageViewer;
 import com.fastasyncworldedit.core.FAWEPlatformAdapterImpl;
 import com.fastasyncworldedit.core.Fawe;
@@ -61,9 +64,11 @@ public class FaweBukkit implements IFawe, Listener {
     private ItemUtil itemUtil;
     private Preloader preloader;
     private volatile boolean keepUnloaded;
+    private Scheduler scheduler;
 
     public FaweBukkit(Plugin plugin) {
         this.plugin = plugin;
+        initializeScheduler();
         try {
             Fawe.set(this);
             Fawe.setupInjector();
@@ -172,7 +177,7 @@ public class FaweBukkit implements IFawe, Listener {
      */
     @Override
     public TaskManager getTaskManager() {
-        return new BukkitTaskManager(plugin);
+        return new BukkitTaskManager(plugin, scheduler);
     }
 
     public Plugin getPlugin() {
@@ -299,6 +304,35 @@ public class FaweBukkit implements IFawe, Listener {
             LOGGER.error("Incompatible version of PlotSquared found. Please use PlotSquared v7.");
             LOGGER.info("https://www.spigotmc.org/resources/77506/");
         }
+    }
+
+    /**
+     * Initialize the scheduler based on whether Folia is available or not.
+     */
+    private void initializeScheduler() {
+        boolean foliaFound = false;
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            foliaFound = true;
+        } catch (ClassNotFoundException ignored) {
+        }
+        
+        if (foliaFound) {
+            this.scheduler = new FoliaScheduler(this.plugin);
+            LOGGER.info("Folia detected - using FoliaScheduler");
+        } else {
+            this.scheduler = new BukkitScheduler(this.plugin);
+            LOGGER.info("Using standard BukkitScheduler");
+        }
+    }
+
+    /**
+     * Get the scheduler instance.
+     * 
+     * @return The scheduler instance
+     */
+    public Scheduler getScheduler() {
+        return scheduler;
     }
 
 }

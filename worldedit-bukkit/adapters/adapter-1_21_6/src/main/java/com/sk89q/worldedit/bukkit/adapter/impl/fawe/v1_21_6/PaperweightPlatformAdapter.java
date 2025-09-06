@@ -330,10 +330,43 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
     }
 
     private static void addTicket(ServerLevel serverLevel, int chunkX, int chunkZ) {
-        // Ensure chunk is definitely loaded before applying a ticket
-        io.papermc.paper.util.MCUtil.MAIN_EXECUTOR.execute(() -> serverLevel
-                .getChunkSource()
-                .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0));
+        boolean isFolia = isFoliaServer();
+        
+        if (isFolia) {
+            try {
+                serverLevel.getChunkSource()
+                        .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0);
+            } catch (Exception e) {
+                // Ignore if we can't add the ticket in Folia - this is expected behavior
+            }
+        } else {
+            try {
+                io.papermc.paper.util.MCUtil.MAIN_EXECUTOR.execute(() -> serverLevel
+                        .getChunkSource()
+                        .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0));
+            } catch (Exception e) {
+                try {
+                    serverLevel.getChunkSource()
+                            .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0);
+                } catch (Exception ex) {
+                    // Ignore if we can't add the ticket
+                }
+            }
+        }
+    }
+    
+    /**
+     * Check if we're running on a Folia server.
+     * 
+     * @return true if running on Folia
+     */
+    private static boolean isFoliaServer() {
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 
     public static ChunkHolder getPlayerChunk(ServerLevel nmsWorld, final int chunkX, final int chunkZ) {
@@ -366,7 +399,9 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         if (lockHolder.chunkLock == null) {
             return;
         }
-        MinecraftServer.getServer().execute(() -> {
+        boolean isFolia = isFoliaServer();
+
+        if (isFolia) {
             try {
                 ChunkPos pos = levelChunk.getPos();
                 ClientboundLevelChunkWithLightPacket packet;
@@ -391,7 +426,61 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
             } finally {
                 NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
             }
-        });
+        } else {
+            try {
+                MinecraftServer.getServer().execute(() -> {
+                    try {
+                        ChunkPos pos = levelChunk.getPos();
+                        ClientboundLevelChunkWithLightPacket packet;
+                        if (PaperLib.isPaper()) {
+                            packet = new ClientboundLevelChunkWithLightPacket(
+                                    levelChunk,
+                                    nmsWorld.getLightEngine(),
+                                    null,
+                                    null,
+                                    false // last false is to not bother with x-ray
+                            );
+                        } else {
+                            // deprecated on paper - deprecation suppressed
+                            packet = new ClientboundLevelChunkWithLightPacket(
+                                    levelChunk,
+                                    nmsWorld.getLightEngine(),
+                                    null,
+                                    null
+                            );
+                        }
+                        nearbyPlayers(nmsWorld, pos).forEach(p -> p.connection.send(packet));
+                    } finally {
+                        NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
+                    }
+                });
+            } catch (Exception e) {
+                try {
+                    ChunkPos pos = levelChunk.getPos();
+                    ClientboundLevelChunkWithLightPacket packet;
+                    if (PaperLib.isPaper()) {
+                        packet = new ClientboundLevelChunkWithLightPacket(
+                                levelChunk,
+                                nmsWorld.getLightEngine(),
+                                null,
+                                null,
+                                false // last false is to not bother with x-ray
+                        );
+                    } else {
+                        // deprecated on paper - deprecation suppressed
+                        packet = new ClientboundLevelChunkWithLightPacket(
+                                levelChunk,
+                                nmsWorld.getLightEngine(),
+                                null,
+                                null
+                        );
+                    }
+                    nearbyPlayers(nmsWorld, pos).forEach(p -> p.connection.send(packet));
+                } finally {
+                    NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
+                }
+            }
+        }
     }
 
     private static List<ServerPlayer> nearbyPlayers(ServerLevel serverLevel, ChunkPos coordIntPair) {
