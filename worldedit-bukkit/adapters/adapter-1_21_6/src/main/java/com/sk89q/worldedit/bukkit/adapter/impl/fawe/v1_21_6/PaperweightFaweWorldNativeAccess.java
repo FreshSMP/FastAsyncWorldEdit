@@ -62,17 +62,7 @@ public class PaperweightFaweWorldNativeAccess implements WorldNativeAccess<Level
         this.level = level;
         // Use the actual tick as minecraft-defined so we don't try to force blocks into the world when the server's already lagging.
         //  - With the caveat that we don't want to have too many cached changed (1024) so we'd flush those at 1024 anyway.
-        int currentTick = 0;
-        try {
-            currentTick = MinecraftServer.currentTick;
-        } catch (NoSuchFieldError e) {
-            try {
-                currentTick = org.bukkit.Bukkit.getCurrentTick();
-            } catch (Exception ex) {
-                currentTick = 0;
-            }
-        }
-        this.lastTick = new AtomicInteger(currentTick);
+        this.lastTick = new AtomicInteger(getCurrentTick());
     }
 
     private Level getLevel() {
