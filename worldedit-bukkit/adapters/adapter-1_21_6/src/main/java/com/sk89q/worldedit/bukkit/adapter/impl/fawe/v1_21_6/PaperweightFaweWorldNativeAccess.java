@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.redstone.ExperimentalRedstoneUtils;
 import net.minecraft.world.level.storage.ValueInput;
+import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.block.data.CraftBlockData;
 import org.bukkit.event.block.BlockPhysicsEvent;
@@ -301,7 +302,7 @@ public class PaperweightFaweWorldNativeAccess implements WorldNativeAccess<Level
             return MinecraftServer.currentTick;
         } catch (NoSuchFieldError e) {
             try {
-                return org.bukkit.Bukkit.getCurrentTick();
+                return Bukkit.getCurrentTick();
             } catch (Exception ex) {
                 return 0;
             }
