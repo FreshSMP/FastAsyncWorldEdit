@@ -28,7 +28,14 @@ public class FoliaScheduler implements Scheduler {
         if (delay < 0 || period < 0) {
             throw new IllegalArgumentException("Delay and period must be non-negative");
         }
-        plugin.getServer().getGlobalRegionScheduler().runAtFixedRate(plugin, scheduledTask -> runnable.run(), (int) delay, (int) period);
+        if (delay == 0) {
+            plugin.getServer().getGlobalRegionScheduler().run(plugin, scheduledTask -> runnable.run());
+            if (period > 0) {
+                plugin.getServer().getGlobalRegionScheduler().runAtFixedRate(plugin, scheduledTask -> runnable.run(), (int) period, (int) period);
+            }
+        } else {
+            plugin.getServer().getGlobalRegionScheduler().runAtFixedRate(plugin, scheduledTask -> runnable.run(), (int) delay, (int) period);
+        }
     }
 
     @Override
