@@ -307,9 +307,6 @@ public class FaweBukkit implements IFawe, Listener {
         }
     }
 
-    /**
-     * Initialize the scheduler based on whether Folia is available or not.
-     */
     private void initializeScheduler() {
         if (FoliaUtil.isFoliaServer()) {
             this.scheduler = new FoliaScheduler(this.plugin);
@@ -320,11 +317,6 @@ public class FaweBukkit implements IFawe, Listener {
         }
     }
 
-    /**
-     * Get the scheduler instance.
-     * 
-     * @return The scheduler instance
-     */
     public Scheduler getScheduler() {
         return scheduler;
     }
