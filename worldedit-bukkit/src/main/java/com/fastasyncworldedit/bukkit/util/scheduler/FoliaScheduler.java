@@ -5,6 +5,13 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Folia implementation of the Scheduler interface.
+ * 
+ * Based on the scheduler implementation from ConaxGames cLibraries:
+ * - Interface: https://github.com/ConaxGames/cLibraries/blob/main/src/main/java/com/conaxgames/libraries/util/scheduler/Scheduler.java
+ * - Implementation: https://github.com/ConaxGames/cLibraries/blob/main/src/main/java/com/conaxgames/libraries/util/scheduler/FoliaScheduler.java
+ */
 public class FoliaScheduler implements Scheduler {
 
     private final Plugin plugin;

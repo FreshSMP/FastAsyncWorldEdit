@@ -5,6 +5,9 @@ import org.bukkit.plugin.Plugin;
 /**
  * Unified scheduler interface that works across both Bukkit and Folia servers.
  * This interface provides a consistent API for scheduling tasks regardless of the server type.
+ * 
+ * Based on the scheduler implementation from ConaxGames cLibraries:
+ * https://github.com/ConaxGames/cLibraries/blob/main/src/main/java/com/conaxgames/libraries/util/scheduler/Scheduler.java
  */
 public interface Scheduler {
 

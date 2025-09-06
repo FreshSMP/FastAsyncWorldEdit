@@ -3,6 +3,13 @@ package com.fastasyncworldedit.bukkit.util.scheduler;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
+/**
+ * Bukkit implementation of the Scheduler interface.
+ * 
+ * Based on the scheduler implementation from ConaxGames cLibraries:
+ * - Interface: https://github.com/ConaxGames/cLibraries/blob/main/src/main/java/com/conaxgames/libraries/util/scheduler/Scheduler.java
+ * - Implementation: https://github.com/ConaxGames/cLibraries/blob/main/src/main/java/com/conaxgames/libraries/util/scheduler/BukkitScheduler.java
+ */
 public class BukkitScheduler implements Scheduler {
 
     private final Plugin plugin;
