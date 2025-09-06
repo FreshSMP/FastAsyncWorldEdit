@@ -83,7 +83,16 @@ public class BukkitEntity implements Entity {
     public boolean setLocation(Location location) {
         org.bukkit.entity.Entity entity = entityRef.get();
         if (entity != null) {
-            return entity.teleport(BukkitAdapter.adapt(location));
+            if (com.fastasyncworldedit.core.util.FoliaUtil.isFoliaServer()) {
+                try {
+                    entity.teleportAsync(BukkitAdapter.adapt(location)).get();
+                    return true;
+                } catch (Exception e) {
+                    return false;
+                }
+            } else {
+                return entity.teleport(BukkitAdapter.adapt(location));
+            }
         } else {
             return false;
         }

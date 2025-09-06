@@ -242,14 +242,30 @@ public class BukkitPlayer extends AbstractPlayerActor {
         }
         org.bukkit.World finalWorld = world;
         //FAWE end
-        return TaskManager.taskManager().sync(() -> player.teleport(new Location(
-                finalWorld,
-                pos.x(),
-                pos.y(),
-                pos.z(),
-                yaw,
-                pitch
-        )));
+        if (com.fastasyncworldedit.core.util.FoliaUtil.isFoliaServer()) {
+            try {
+                player.teleportAsync(new Location(
+                        finalWorld,
+                        pos.x(),
+                        pos.y(),
+                        pos.z(),
+                        yaw,
+                        pitch
+                )).get();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        } else {
+            return TaskManager.taskManager().sync(() -> player.teleport(new Location(
+                    finalWorld,
+                    pos.x(),
+                    pos.y(),
+                    pos.z(),
+                    yaw,
+                    pitch
+            )));
+        }
     }
 
     @Override
@@ -363,7 +379,16 @@ public class BukkitPlayer extends AbstractPlayerActor {
 
     @Override
     public boolean setLocation(com.sk89q.worldedit.util.Location location) {
-        return player.teleport(BukkitAdapter.adapt(location));
+        if (com.fastasyncworldedit.core.util.FoliaUtil.isFoliaServer()) {
+            try {
+                player.teleportAsync(BukkitAdapter.adapt(location)).get();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        } else {
+            return player.teleport(BukkitAdapter.adapt(location));
+        }
     }
 
     @Override
