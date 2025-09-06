@@ -363,7 +363,7 @@ public abstract class TaskManager {
      * - Usually wait time is around 25ms<br>
      */
     public <T> T sync(final Supplier<T> function) {
-        if (Fawe.isMainThread()) {
+        if (Fawe.isMainThread() || FoliaUtil.isFoliaServer()) {
             return function.get();
         }
         try {
