@@ -56,6 +56,7 @@ import com.sk89q.worldedit.world.generation.StructureType;
 import com.sk89q.worldedit.world.item.ItemType;
 import com.sk89q.worldedit.world.registry.BlockMaterial;
 import io.papermc.lib.PaperLib;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -139,7 +140,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 
 import static com.sk89q.worldedit.bukkit.adapter.impl.fawe.v1_21_6.PaperweightPlatformAdapter.createOutput;
 import static net.minecraft.core.registries.Registries.BIOME;
@@ -361,7 +361,9 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
         String id = entity.getType().getKey().toString();
         EntityType type = com.sk89q.worldedit.world.entity.EntityTypes.get(id);
         Supplier<LinCompoundTag> saveTag = () -> {
-            final net.minecraft.nbt.CompoundTag minecraftTag = new net.minecraft.nbt.CompoundTag();
+            net.minecraft.nbt.CompoundTag minecraftTag = new net.minecraft.nbt.CompoundTag();
+            Entity mcEntity;
+
             if (FoliaUtil.isFoliaServer()) {
                 CompletableFuture<Entity> handleFuture = new CompletableFuture<>();
                 entity.getScheduler().run(
@@ -375,26 +377,22 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
                         },
                         () -> handleFuture.completeExceptionally(new CancellationException("Entity scheduler task cancelled"))
                 );
-                Entity mcEntity;
                 try {
                     mcEntity = handleFuture.join();
                 } catch (Throwable t) {
                     LOGGER.error("Failed to safely get NMS handle for {}", id, t);
                     return null;
                 }
-
-                if (mcEntity == null || !readEntityIntoTag(mcEntity, minecraftTag)) {
-                    return null;
-                }
             } else {
-                Entity mcEntity = ((CraftEntity) entity).getHandle();
-                if (!readEntityIntoTag(mcEntity, minecraftTag)) {
-                    return null;
-                }
+                mcEntity = ((CraftEntity) entity).getHandle();
             }
-            //add Id for AbstractChangeSet to work
-            final LinCompoundTag tag = (LinCompoundTag) toNativeLin(minecraftTag);
-            final Map<String, LinTag<?>> tags = NbtUtils.getLinCompoundTagValues(tag);
+
+            if (mcEntity == null || !readEntityIntoTag(mcEntity, minecraftTag)) {
+                return null;
+            }
+
+            LinCompoundTag tag = (LinCompoundTag) toNativeLin(minecraftTag);
+            Map<String, LinTag<?>> tags = NbtUtils.getLinCompoundTagValues(tag);
             tags.put("Id", LinStringTag.of(id));
             return LinCompoundTag.of(tags);
         };
@@ -831,7 +829,6 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
             }
         }
     }
-
 
     @Override
     protected ServerLevel getServerLevel(final World world) {
