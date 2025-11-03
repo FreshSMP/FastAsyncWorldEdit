@@ -340,27 +340,20 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
     }
 
     private static void addTicket(ServerLevel serverLevel, int chunkX, int chunkZ) {
-        boolean isFolia = FoliaUtil.isFoliaServer();
-
-        if (isFolia) {
+        ChunkPos pos = new ChunkPos(chunkX, chunkZ);
+        if (FoliaUtil.isFoliaServer()) {
             try {
-                serverLevel.getChunkSource()
-                        .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0);
-            } catch (Exception e) {
-                // Ignore if we can't add the ticket in Folia - this is expected behavior
+                serverLevel.getChunkSource().addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, pos, 0);
+            } catch (Exception ignored) {
             }
-        } else {
+            return;
+        }
+        try {
+            MCUtil.MAIN_EXECUTOR.execute(() -> serverLevel.getChunkSource().addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, pos, 0));
+        } catch (Exception e) {
             try {
-                MCUtil.MAIN_EXECUTOR.execute(() -> serverLevel
-                        .getChunkSource()
-                        .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0));
-            } catch (Exception e) {
-                try {
-                    serverLevel.getChunkSource()
-                            .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0);
-                } catch (Exception ex) {
-                    // Ignore if we can't add the ticket
-                }
+                serverLevel.getChunkSource().addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, pos, 0);
+            } catch (Exception ignored) {
             }
         }
     }
@@ -380,13 +373,9 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         if (chunkHolder == null) {
             return;
         }
-        LevelChunk levelChunk;
-        if (PaperLib.isPaper()) {
-            // getChunkAtIfLoadedImmediately is paper only
-            levelChunk = nmsWorld.getChunkSource().getChunkAtIfLoadedImmediately(chunkX, chunkZ);
-        } else {
-            levelChunk = chunkHolder.getTickingChunkFuture().getNow(ChunkHolder.UNLOADED_LEVEL_CHUNK).orElse(null);
-        }
+        LevelChunk levelChunk = PaperLib.isPaper()
+                ? nmsWorld.getChunkSource().getChunkAtIfLoadedImmediately(chunkX, chunkZ)
+                : chunkHolder.getTickingChunkFuture().getNow(ChunkHolder.UNLOADED_LEVEL_CHUNK).orElse(null);
         if (levelChunk == null) {
             return;
         }
@@ -396,29 +385,16 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
             return;
         }
 
-        boolean isFolia = FoliaUtil.isFoliaServer();
-        if (isFolia) {
+        ChunkPos pos = levelChunk.getPos();
+        ClientboundLevelChunkWithLightPacket packet = PaperLib.isPaper()
+                ? new ClientboundLevelChunkWithLightPacket(levelChunk, nmsWorld.getLightEngine(), null, null, false)
+                : new ClientboundLevelChunkWithLightPacket(levelChunk, nmsWorld.getLightEngine(), null, null);
+
+        Runnable sendPacket = () -> nearbyPlayers(nmsWorld, pos).forEach(p -> p.connection.send(packet));
+
+        if (FoliaUtil.isFoliaServer()) {
             try {
-                ChunkPos pos = levelChunk.getPos();
-                ClientboundLevelChunkWithLightPacket packet;
-                if (PaperLib.isPaper()) {
-                    packet = new ClientboundLevelChunkWithLightPacket(
-                            levelChunk,
-                            nmsWorld.getLightEngine(),
-                            null,
-                            null,
-                            false // last false is to not bother with x-ray
-                    );
-                } else {
-                    // deprecated on paper - deprecation suppressed
-                    packet = new ClientboundLevelChunkWithLightPacket(
-                            levelChunk,
-                            nmsWorld.getLightEngine(),
-                            null,
-                            null
-                    );
-                }
-                nearbyPlayers(nmsWorld, pos).forEach(p -> p.connection.send(packet));
+                sendPacket.run();
             } finally {
                 NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
             }
@@ -426,52 +402,14 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
             try {
                 MinecraftServer.getServer().execute(() -> {
                     try {
-                        ChunkPos pos = levelChunk.getPos();
-                        ClientboundLevelChunkWithLightPacket packet;
-                        if (PaperLib.isPaper()) {
-                            packet = new ClientboundLevelChunkWithLightPacket(
-                                    levelChunk,
-                                    nmsWorld.getLightEngine(),
-                                    null,
-                                    null,
-                                    false // last false is to not bother with x-ray
-                            );
-                        } else {
-                            // deprecated on paper - deprecation suppressed
-                            packet = new ClientboundLevelChunkWithLightPacket(
-                                    levelChunk,
-                                    nmsWorld.getLightEngine(),
-                                    null,
-                                    null
-                            );
-                        }
-                        nearbyPlayers(nmsWorld, pos).forEach(p -> p.connection.send(packet));
+                        sendPacket.run();
                     } finally {
                         NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
                     }
                 });
             } catch (Exception e) {
                 try {
-                    ChunkPos pos = levelChunk.getPos();
-                    ClientboundLevelChunkWithLightPacket packet;
-                    if (PaperLib.isPaper()) {
-                        packet = new ClientboundLevelChunkWithLightPacket(
-                                levelChunk,
-                                nmsWorld.getLightEngine(),
-                                null,
-                                null,
-                                false // last false is to not bother with x-ray
-                        );
-                    } else {
-                        // deprecated on paper - deprecation suppressed
-                        packet = new ClientboundLevelChunkWithLightPacket(
-                                levelChunk,
-                                nmsWorld.getLightEngine(),
-                                null,
-                                null
-                        );
-                    }
-                    nearbyPlayers(nmsWorld, pos).forEach(p -> p.connection.send(packet));
+                    sendPacket.run();
                 } finally {
                     NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
                 }

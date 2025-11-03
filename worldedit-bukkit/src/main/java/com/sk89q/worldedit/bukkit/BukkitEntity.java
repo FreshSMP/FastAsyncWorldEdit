@@ -84,20 +84,18 @@ public class BukkitEntity implements Entity {
     @Override
     public boolean setLocation(Location location) {
         org.bukkit.entity.Entity entity = entityRef.get();
-        if (entity != null) {
-            if (FoliaUtil.isFoliaServer()) {
-                try {
-                    entity.teleportAsync(BukkitAdapter.adapt(location)).get();
-                    return true;
-                } catch (Exception e) {
-                    return false;
-                }
-            } else {
-                return entity.teleport(BukkitAdapter.adapt(location));
-            }
-        } else {
+        if (entity == null) {
             return false;
         }
+        if (FoliaUtil.isFoliaServer()) {
+            try {
+                entity.teleportAsync(BukkitAdapter.adapt(location)).get();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return entity.teleport(BukkitAdapter.adapt(location));
     }
 
     @Override
@@ -134,24 +132,23 @@ public class BukkitEntity implements Entity {
                     return false;
                 }
             });
-        } else {
-            return TaskManager.taskManager().sync(() -> {
-                org.bukkit.entity.Entity entity = entityRef.get();
-                if (entity == null) {
-                    return true;
-                }
-                try {
-                    entity.remove();
-                } catch (UnsupportedOperationException e) {
-                    return false;
-                }
-                try {
-                    return entity.isDead();
-                } catch (Throwable t) {
-                    return !entity.isValid();
-                }
-            });
         }
+        return TaskManager.taskManager().sync(() -> {
+            org.bukkit.entity.Entity entity = entityRef.get();
+            if (entity == null) {
+                return true;
+            }
+            try {
+                entity.remove();
+            } catch (UnsupportedOperationException e) {
+                return false;
+            }
+            try {
+                return entity.isDead();
+            } catch (Throwable t) {
+                return !entity.isValid();
+            }
+        });
     }
 
     @SuppressWarnings("unchecked")

@@ -37,7 +37,6 @@ import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_20_R3.CraftServer;
 import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
 import org.bukkit.generator.BiomeProvider;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -229,15 +228,10 @@ public class PaperweightRegen extends Regenerator {
 
         setRandomSpawnSelection(spawnChunk);
 
-        Plugin plugin = getPlugin();
-        if (plugin == null) {
-            throw new IllegalStateException("Cannot find FastAsyncWorldEdit or WorldEdit plugin");
-        }
-
         CompletableFuture<Boolean> initFuture = new CompletableFuture<>();
 
         Bukkit.getServer().getRegionScheduler().run(
-                plugin,
+                WorldEditPlugin.getInstance(),
                 freshWorld.getWorld(),
                 spawnChunk.x, spawnChunk.z,
                 task -> {
@@ -261,11 +255,6 @@ public class PaperweightRegen extends Regenerator {
         } catch (ReflectiveOperationException e) {
             throw new RuntimeException("Failed to set randomSpawnSelection for Folia world initialization", e);
         }
-    }
-
-    private Plugin getPlugin() {
-        Plugin plugin = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
-        return plugin != null ? plugin : Bukkit.getPluginManager().getPlugin("WorldEdit");
     }
 
     @Override

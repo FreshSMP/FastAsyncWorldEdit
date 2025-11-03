@@ -9,6 +9,7 @@ import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.worldedit.WorldEditException;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
+import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.function.pattern.Pattern;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -21,7 +22,6 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.generator.BiomeProvider;
 import org.bukkit.generator.WorldInfo;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -108,7 +108,7 @@ public abstract class Regenerator {
 
     private void copyToWorld() {
         createSource();
-        final long timeoutPerTick = TimeUnit.MILLISECONDS.toNanos(10);
+        long timeoutPerTick = TimeUnit.MILLISECONDS.toNanos(10);
         int taskId = FoliaUtil.isFoliaServer()
                 ? scheduleFoliaRegenTask(timeoutPerTick)
                 : scheduleRegenTask(timeoutPerTick);
@@ -121,7 +121,7 @@ public abstract class Regenerator {
 
     private int scheduleRegenTask(long timeoutPerTick) {
         return TaskManager.taskManager().repeat(() -> {
-            final long startTime = System.nanoTime();
+            long startTime = System.nanoTime();
             runTasks(() -> System.nanoTime() - startTime < timeoutPerTick);
         }, 1);
     }
@@ -138,16 +138,11 @@ public abstract class Regenerator {
         BlockVector3 min = region.getMinimumPoint();
         Location location = new Location(freshWorld, min.x(), min.y(), min.z());
 
-        Plugin plugin = getPlugin();
-        if (plugin == null) {
-            throw new IllegalStateException("Cannot schedule Folia task: plugin instance not found");
-        }
-
         var task = Bukkit.getServer().getRegionScheduler().runAtFixedRate(
-                plugin,
+                WorldEditPlugin.getInstance(),
                 location,
                 scheduledTask -> {
-                    final long startTime = System.nanoTime();
+                    long startTime = System.nanoTime();
                     runTasks(() -> System.nanoTime() - startTime < timeoutPerTick);
                 },
                 1,
@@ -171,11 +166,6 @@ public abstract class Regenerator {
         } catch (Exception e) {
             return null;
         }
-    }
-
-    private @Nullable Plugin getPlugin() {
-        Plugin plugin = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
-        return plugin != null ? plugin : Bukkit.getPluginManager().getPlugin("WorldEdit");
     }
 
     private Pattern createRegenerationPattern() {
@@ -205,13 +195,13 @@ public abstract class Regenerator {
         protected @Nullable IChunk chunk;
 
         @Override
-        public @NotNull <T extends IChunk> T applyChunk(final T chunk, @Nullable final Region region) {
+        public @NotNull <T extends IChunk> T applyChunk(T chunk, @Nullable Region region) {
             this.chunk = source.getOrCreateChunk(chunk.getX(), chunk.getZ());
             return chunk;
         }
 
         @Override
-        public void finishChunk(final IChunk chunk) {
+        public void finishChunk(IChunk chunk) {
             this.chunk = null;
         }
 
@@ -222,18 +212,15 @@ public abstract class Regenerator {
     private class PlacementPattern extends ChunkwisePattern {
 
         @Override
-        public BaseBlock applyBlock(final BlockVector3 position) {
+        public BaseBlock applyBlock(BlockVector3 position) {
             return source.getFullBlock(position);
         }
 
         @Override
-        public boolean apply(final Extent extent, final BlockVector3 get, final BlockVector3 set) throws WorldEditException {
-            BaseBlock fullBlock;
-            if (chunk != null) {
-                fullBlock = chunk.getFullBlock(get.x() & 15, get.y(), get.z() & 15);
-            } else {
-                fullBlock = source.getFullBlock(get.x(), get.y(), get.z());
-            }
+        public boolean apply(Extent extent, BlockVector3 get, BlockVector3 set) throws WorldEditException {
+            BaseBlock fullBlock = chunk != null
+                    ? chunk.getFullBlock(get.x() & 15, get.y(), get.z() & 15)
+                    : source.getFullBlock(get.x(), get.y(), get.z());
             return set.setFullBlock(extent, fullBlock);
         }
 
@@ -247,23 +234,20 @@ public abstract class Regenerator {
 
         private final BiFunction<BlockVector3, @Nullable IChunk, BiomeType> biomeGetter;
 
-        private WithBiomePlacementPattern(final BiFunction<BlockVector3, @Nullable IChunk, BiomeType> biomeGetter) {
+        private WithBiomePlacementPattern(BiFunction<BlockVector3, @Nullable IChunk, BiomeType> biomeGetter) {
             this.biomeGetter = biomeGetter;
         }
 
         @Override
-        public BaseBlock applyBlock(final BlockVector3 position) {
+        public BaseBlock applyBlock(BlockVector3 position) {
             return source.getFullBlock(position);
         }
 
         @Override
-        public boolean apply(final Extent extent, final BlockVector3 get, final BlockVector3 set) throws WorldEditException {
-            final BaseBlock fullBlock;
-            if (chunk != null) {
-                fullBlock = chunk.getFullBlock(get.x() & 15, get.y(), get.z() & 15);
-            } else {
-                fullBlock = source.getFullBlock(get.x(), get.y(), get.z());
-            }
+        public boolean apply(Extent extent, BlockVector3 get, BlockVector3 set) throws WorldEditException {
+            BaseBlock fullBlock = chunk != null
+                    ? chunk.getFullBlock(get.x() & 15, get.y(), get.z() & 15)
+                    : source.getFullBlock(get.x(), get.y(), get.z());
             return extent.setBlock(set.x(), set.y(), set.z(), fullBlock)
                     && extent.setBiome(set.x(), set.y(), set.z(), biomeGetter.apply(get, chunk));
         }
@@ -334,12 +318,12 @@ public abstract class Regenerator {
         private final org.bukkit.block.Biome biome = BukkitAdapter.adapt(options.getBiomeType());
 
         @Override
-        public org.bukkit.block.Biome getBiome(final WorldInfo worldInfo, final int x, final int y, final int z) {
+        public org.bukkit.block.Biome getBiome(WorldInfo worldInfo, int x, int y, int z) {
             return biome;
         }
 
         @Override
-        public List<org.bukkit.block.Biome> getBiomes(final WorldInfo worldInfo) {
+        public List<org.bukkit.block.Biome> getBiomes(WorldInfo worldInfo) {
             return Collections.singletonList(biome);
         }
 

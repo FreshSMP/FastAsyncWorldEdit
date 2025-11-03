@@ -389,11 +389,9 @@ public interface IBukkitAdapter {
      * @return list of {@link org.bukkit.entity.Entity}
      */
     default List<org.bukkit.entity.Entity> getEntities(org.bukkit.World world) {
-        if (FoliaUtil.isFoliaServer()) {
-            return TaskManager.taskManager().syncWhenFree(world::getEntities);
-        } else {
-            return TaskManager.taskManager().sync(world::getEntities);
-        }
+        return FoliaUtil.isFoliaServer()
+                ? TaskManager.taskManager().syncWhenFree(world::getEntities)
+                : TaskManager.taskManager().sync(world::getEntities);
     }
 
     /**

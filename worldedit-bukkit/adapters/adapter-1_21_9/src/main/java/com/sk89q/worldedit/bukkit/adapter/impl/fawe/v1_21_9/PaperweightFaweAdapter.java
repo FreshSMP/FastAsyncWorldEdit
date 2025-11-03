@@ -361,7 +361,9 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
         String id = entity.getType().getKey().toString();
         EntityType type = com.sk89q.worldedit.world.entity.EntityTypes.get(id);
         Supplier<LinCompoundTag> saveTag = () -> {
-            final net.minecraft.nbt.CompoundTag minecraftTag = new net.minecraft.nbt.CompoundTag();
+            net.minecraft.nbt.CompoundTag minecraftTag = new net.minecraft.nbt.CompoundTag();
+            Entity mcEntity;
+
             if (FoliaUtil.isFoliaServer()) {
                 CompletableFuture<Entity> handleFuture = new CompletableFuture<>();
                 entity.getScheduler().run(
@@ -375,26 +377,22 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
                         },
                         () -> handleFuture.completeExceptionally(new CancellationException("Entity scheduler task cancelled"))
                 );
-                Entity mcEntity;
                 try {
                     mcEntity = handleFuture.join();
                 } catch (Throwable t) {
                     LOGGER.error("Failed to safely get NMS handle for {}", id, t);
                     return null;
                 }
-
-                if (mcEntity == null || !readEntityIntoTag(mcEntity, minecraftTag)) {
-                    return null;
-                }
             } else {
-                Entity mcEntity = ((CraftEntity) entity).getHandle();
-                if (!readEntityIntoTag(mcEntity, minecraftTag)) {
-                    return null;
-                }
+                mcEntity = ((CraftEntity) entity).getHandle();
             }
-            //add Id for AbstractChangeSet to work
-            final LinCompoundTag tag = (LinCompoundTag) toNativeLin(minecraftTag);
-            final Map<String, LinTag<?>> tags = NbtUtils.getLinCompoundTagValues(tag);
+
+            if (mcEntity == null || !readEntityIntoTag(mcEntity, minecraftTag)) {
+                return null;
+            }
+
+            LinCompoundTag tag = (LinCompoundTag) toNativeLin(minecraftTag);
+            Map<String, LinTag<?>> tags = NbtUtils.getLinCompoundTagValues(tag);
             tags.put("Id", LinStringTag.of(id));
             return LinCompoundTag.of(tags);
         };

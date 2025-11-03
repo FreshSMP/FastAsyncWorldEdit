@@ -263,16 +263,15 @@ public class WorldWrapper extends AbstractWorld {
     }
 
     @Override
-    public Collection<BaseItemStack> getBlockDrops(final BlockVector3 position) {
+    public Collection<BaseItemStack> getBlockDrops(BlockVector3 position) {
         if (FoliaUtil.isFoliaServer()) {
             try {
                 return parent.getBlockDrops(position);
             } catch (Exception e) {
                 return new ArrayList<>();
             }
-        } else {
-            return TaskManager.taskManager().sync(() -> parent.getBlockDrops(position));
         }
+        return TaskManager.taskManager().sync(() -> parent.getBlockDrops(position));
     }
 
     @Override

@@ -458,19 +458,21 @@ public class WorldEditPlugin extends JavaPlugin {
         if (config != null) {
             config.unload();
         }
+        if (FoliaUtil.isFoliaServer()) {
+            return;
+        }
         try {
             FaweBukkit faweBukkit = Fawe.platform();
             if (faweBukkit != null && faweBukkit.getScheduler() != null) {
-                if (!FoliaUtil.isFoliaServer()) {
-                    try {
-                        this.getServer().getScheduler().cancelTasks(this);
-                    } catch (Exception ignored) {
-                    }
+                try {
+                    this.getServer().getScheduler().cancelTasks(this);
+                } catch (Exception ignored) {
                 }
             }
         } catch (Exception e) {
-            if (!FoliaUtil.isFoliaServer()) {
+            try {
                 this.getServer().getScheduler().cancelTasks(this);
+            } catch (Exception ignored) {
             }
         }
     }

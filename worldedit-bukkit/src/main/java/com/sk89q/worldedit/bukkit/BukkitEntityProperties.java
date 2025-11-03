@@ -154,9 +154,8 @@ class BukkitEntityProperties implements EntityProperties {
         }
         if (FoliaUtil.isFoliaServer()) {
             return false;
-        } else {
-            return ((Tameable) entity).isTamed();
         }
+        return ((Tameable) entity).isTamed();
     }
 
     @Override
@@ -166,9 +165,8 @@ class BukkitEntityProperties implements EntityProperties {
         }
         if (FoliaUtil.isFoliaServer()) {
             return false;
-        } else {
-            return entity.customName() != null;
         }
+        return entity.customName() != null;
     }
 
     @Override

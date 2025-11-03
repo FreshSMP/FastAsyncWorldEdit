@@ -306,11 +306,9 @@ public class FaweBukkit implements IFawe, Listener {
     }
 
     private void initializeScheduler() {
-        if (FoliaUtil.isFoliaServer()) {
-            this.scheduler = new FoliaScheduler(this.plugin);
-        } else {
-            this.scheduler = new BukkitScheduler(this.plugin);
-        }
+        this.scheduler = FoliaUtil.isFoliaServer()
+                ? new FoliaScheduler(this.plugin)
+                : new BukkitScheduler(this.plugin);
     }
 
     public Scheduler getScheduler() {

@@ -257,16 +257,15 @@ public class BukkitPlayer extends AbstractPlayerActor {
             } catch (Exception e) {
                 return false;
             }
-        } else {
-            return TaskManager.taskManager().sync(() -> player.teleport(new Location(
-                    finalWorld,
-                    pos.x(),
-                    pos.y(),
-                    pos.z(),
-                    yaw,
-                    pitch
-            )));
         }
+        return TaskManager.taskManager().sync(() -> player.teleport(new Location(
+                finalWorld,
+                pos.x(),
+                pos.y(),
+                pos.z(),
+                yaw,
+                pitch
+        )));
     }
 
     @Override
@@ -387,9 +386,8 @@ public class BukkitPlayer extends AbstractPlayerActor {
             } catch (Exception e) {
                 return false;
             }
-        } else {
-            return player.teleport(BukkitAdapter.adapt(location));
         }
+        return player.teleport(BukkitAdapter.adapt(location));
     }
 
     @Override
