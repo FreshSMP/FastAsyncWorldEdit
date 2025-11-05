@@ -12,9 +12,7 @@ import com.fastasyncworldedit.bukkit.regions.TownyFeature;
 import com.fastasyncworldedit.bukkit.regions.WorldGuardFeature;
 import com.fastasyncworldedit.bukkit.util.BukkitTaskManager;
 import com.fastasyncworldedit.bukkit.util.ItemUtil;
-import com.fastasyncworldedit.bukkit.util.scheduler.BukkitScheduler;
-import com.fastasyncworldedit.bukkit.util.scheduler.FoliaScheduler;
-import com.fastasyncworldedit.bukkit.util.scheduler.Scheduler;
+import com.fastasyncworldedit.bukkit.util.image.BukkitImageViewer;
 import com.fastasyncworldedit.core.FAWEPlatformAdapterImpl;
 import com.fastasyncworldedit.core.Fawe;
 import com.fastasyncworldedit.core.IFawe;
@@ -23,7 +21,6 @@ import com.fastasyncworldedit.core.queue.implementation.QueueHandler;
 import com.fastasyncworldedit.core.queue.implementation.preloader.AsyncPreloader;
 import com.fastasyncworldedit.core.queue.implementation.preloader.Preloader;
 import com.fastasyncworldedit.core.regions.FaweMaskManager;
-import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.fastasyncworldedit.core.util.WEManager;
 import com.fastasyncworldedit.core.util.image.ImageViewer;
@@ -44,6 +41,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -59,7 +57,6 @@ public class FaweBukkit implements IFawe, Listener {
     private static final Logger LOGGER = LogManagerCompat.getLogger();
 
     private final Plugin plugin;
-    private Scheduler scheduler;
     private final FAWEPlatformAdapterImpl platformAdapter;
     private ItemUtil itemUtil;
     private Preloader preloader;
@@ -67,7 +64,6 @@ public class FaweBukkit implements IFawe, Listener {
 
     public FaweBukkit(Plugin plugin) {
         this.plugin = plugin;
-        initializeScheduler();
         try {
             Fawe.set(this);
             Fawe.setupInjector();
@@ -87,7 +83,7 @@ public class FaweBukkit implements IFawe, Listener {
         platformAdapter = new NMSAdapter();
 
         //PlotSquared support is limited to Spigot/Paper as of 02/20/2020
-        TaskManager.taskManager().later(this::setupPlotSquared, 1);
+        TaskManager.taskManager().later(this::setupPlotSquared, 0);
 
         // Registered delayed Event Listeners
         TaskManager.taskManager().task(() -> {
@@ -176,7 +172,7 @@ public class FaweBukkit implements IFawe, Listener {
      */
     @Override
     public TaskManager getTaskManager() {
-        return new BukkitTaskManager(plugin, scheduler);
+        return new BukkitTaskManager(plugin);
     }
 
     public Plugin getPlugin() {
@@ -303,16 +299,6 @@ public class FaweBukkit implements IFawe, Listener {
             LOGGER.error("Incompatible version of PlotSquared found. Please use PlotSquared v7.");
             LOGGER.info("https://www.spigotmc.org/resources/77506/");
         }
-    }
-
-    private void initializeScheduler() {
-        this.scheduler = FoliaUtil.isFoliaServer()
-                ? new FoliaScheduler(this.plugin)
-                : new BukkitScheduler(this.plugin);
-    }
-
-    public Scheduler getScheduler() {
-        return scheduler;
     }
 
 }

@@ -56,7 +56,6 @@ import com.sk89q.worldedit.world.generation.StructureType;
 import com.sk89q.worldedit.world.item.ItemType;
 import com.sk89q.worldedit.world.registry.BlockMaterial;
 import io.papermc.lib.PaperLib;
-import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -134,7 +133,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -358,45 +356,24 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
     public BaseEntity getEntity(org.bukkit.entity.Entity entity) {
         Preconditions.checkNotNull(entity);
 
-        String id = entity.getType().getKey().toString();
+        CraftEntity craftEntity = ((CraftEntity) entity);
+        Entity mcEntity = craftEntity.getHandle();
+
+        String id = getEntityId(mcEntity);
         EntityType type = com.sk89q.worldedit.world.entity.EntityTypes.get(id);
         Supplier<LinCompoundTag> saveTag = () -> {
-            net.minecraft.nbt.CompoundTag minecraftTag = new net.minecraft.nbt.CompoundTag();
-            Entity mcEntity;
-
-            if (FoliaUtil.isFoliaServer()) {
-                CompletableFuture<Entity> handleFuture = new CompletableFuture<>();
-                entity.getScheduler().run(
-                        WorldEditPlugin.getInstance(),
-                        (ScheduledTask task) -> {
-                            try {
-                                handleFuture.complete(((CraftEntity) entity).getHandle());
-                            } catch (Throwable t) {
-                                handleFuture.completeExceptionally(t);
-                            }
-                        },
-                        () -> handleFuture.completeExceptionally(new CancellationException("Entity scheduler task cancelled"))
-                );
-                try {
-                    mcEntity = handleFuture.join();
-                } catch (Throwable t) {
-                    LOGGER.error("Failed to safely get NMS handle for {}", id, t);
-                    return null;
-                }
-            } else {
-                mcEntity = ((CraftEntity) entity).getHandle();
-            }
-
-            if (mcEntity == null || !readEntityIntoTag(mcEntity, minecraftTag)) {
+            final net.minecraft.nbt.CompoundTag minecraftTag = new net.minecraft.nbt.CompoundTag();
+            if (!readEntityIntoTag(mcEntity, minecraftTag)) {
                 return null;
             }
-
-            LinCompoundTag tag = (LinCompoundTag) toNativeLin(minecraftTag);
-            Map<String, LinTag<?>> tags = NbtUtils.getLinCompoundTagValues(tag);
+            //add Id for AbstractChangeSet to work
+            final LinCompoundTag tag = (LinCompoundTag) toNativeLin(minecraftTag);
+            final Map<String, LinTag<?>> tags = NbtUtils.getLinCompoundTagValues(tag);
             tags.put("Id", LinStringTag.of(id));
             return LinCompoundTag.of(tags);
         };
         return new LazyBaseEntity(type, saveTag);
+
     }
 
     @Override
@@ -583,63 +560,36 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
 
     @Override
     protected void preCaptureStates(final ServerLevel serverLevel) {
-        try {
-            Field captureTreeField = ServerLevel.class.getDeclaredField("captureTreeGeneration");
-            captureTreeField.setAccessible(true);
-            captureTreeField.setBoolean(serverLevel, true);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // Unable to read captureTreeGeneration field
-        }
-        try {
-            Field captureBlockField = ServerLevel.class.getDeclaredField("captureBlockStates");
-            captureBlockField.setAccessible(true);
-            captureBlockField.setBoolean(serverLevel, true);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // Unable to read captureTreeGeneration field
-        }
+        serverLevel.captureTreeGeneration = true;
+        serverLevel.captureBlockStates = true;
     }
 
     @Override
     protected List<org.bukkit.block.BlockState> getCapturedBlockStatesCopy(final ServerLevel serverLevel) {
-        try {
-            Field capturedStatesField = ServerLevel.class.getDeclaredField("capturedBlockStates");
-            capturedStatesField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            Map<BlockPos, org.bukkit.block.BlockState> capturedStates = (Map<BlockPos, org.bukkit.block.BlockState>) capturedStatesField.get(serverLevel);
-            return capturedStates != null ? new ArrayList<>(capturedStates.values()) : new ArrayList<>();
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            return new ArrayList<>();
-        }
+        return new ArrayList<>(serverLevel.capturedBlockStates.values());
     }
 
     @Override
     protected void postCaptureBlockStates(final ServerLevel serverLevel) {
-        try {
-            Field captureBlockField = ServerLevel.class.getDeclaredField("captureBlockStates");
-            captureBlockField.setAccessible(true);
-            captureBlockField.setBoolean(serverLevel, false);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // Unable to read captureTreeGeneration field
-        }
-        try {
-            Field captureTreeField = ServerLevel.class.getDeclaredField("captureTreeGeneration");
-            captureTreeField.setAccessible(true);
-            captureTreeField.setBoolean(serverLevel, false);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // Unable to read captureTreeGeneration field
-        }
-        try {
-            Field capturedStatesField = ServerLevel.class.getDeclaredField("capturedBlockStates");
-            capturedStatesField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            Map<BlockPos, org.bukkit.block.BlockState> capturedStates = (Map<BlockPos, org.bukkit.block.BlockState>) capturedStatesField.get(serverLevel);
-            if (capturedStates != null) {
-                capturedStates.clear();
-            }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // Unable to read captureTreeGeneration field
-        }
+        serverLevel.captureBlockStates = false;
+        serverLevel.captureTreeGeneration = false;
+        serverLevel.capturedBlockStates.clear();
     }
+
+    private <T> T syncRegion(World world, BlockVector3 pt, java.util.function.Supplier<T> supplier) {
+        if (FoliaUtil.isFoliaServer()) {
+            Location location = new Location(world, pt.x(), pt.y(), pt.z());
+            CompletableFuture<T> future = new CompletableFuture<>();
+            Bukkit.getServer().getRegionScheduler().run(
+                    WorldEditPlugin.getInstance(),
+                    location,
+                    scheduledTask -> future.complete(supplier.get())
+            );
+            return future.join();
+        }
+        return TaskManager.taskManager().sync(supplier);
+    }
+
     @Override
     public boolean generateFeature(ConfiguredFeatureType feature, World world, EditSession editSession, BlockVector3 pt) {
         ServerLevel serverLevel = getServerLevel(world);
@@ -651,7 +601,7 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
                 .getValue(ResourceLocation.tryParse(feature.id()));
 
         FaweBlockStateListPopulator populator = new FaweBlockStateListPopulator(serverLevel);
-        List<CraftBlockState> placed = TaskManager.taskManager().sync(() -> {
+        List<CraftBlockState> placed = syncRegion(world, pt, () -> {
             preCaptureStates(serverLevel);
             try {
                 if (!configuredFeature.place(
@@ -693,7 +643,7 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
         };
         FaweBlockStateListPopulator populator = new FaweBlockStateListPopulator(serverLevel);
         access.setDelegate(populator);
-        List<CraftBlockState> placed = TaskManager.taskManager().sync(() -> {
+        List<CraftBlockState> placed = syncRegion(world, pt, () -> {
             preCaptureStates(serverLevel);
             try {
                 StructureStart structureStart = structure.generate(

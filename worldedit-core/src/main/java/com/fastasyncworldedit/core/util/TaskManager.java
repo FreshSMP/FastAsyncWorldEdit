@@ -223,6 +223,7 @@ public abstract class TaskManager {
         }
     }
 
+
     /**
      * Run a task later on the main thread.
      *
@@ -320,12 +321,12 @@ public abstract class TaskManager {
      * - Usually wait time is around 25ms<br>
      */
     public <T> T syncWhenFree(@Nonnull final RunnableVal<T> function) {
-        if (Fawe.isMainThread()) {
+        if (Fawe.isMainThread() || FoliaUtil.isFoliaServer()) {
             function.run();
             return function.value;
         }
         try {
-            return Fawe.instance().getQueueHandler().syncWhenFree((Supplier<T>) function).get();
+            return Fawe.instance().getQueueHandler().sync((Supplier<T>) function).get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
@@ -337,11 +338,11 @@ public abstract class TaskManager {
      * - Usually wait time is around 25ms<br>
      */
     public <T> T syncWhenFree(@Nonnull final Supplier<T> supplier) {
-        if (Fawe.isMainThread()) {
+        if (Fawe.isMainThread() || FoliaUtil.isFoliaServer()) {
             return supplier.get();
         }
         try {
-            return Fawe.instance().getQueueHandler().syncWhenFree(supplier).get();
+            return Fawe.instance().getQueueHandler().sync(supplier).get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }

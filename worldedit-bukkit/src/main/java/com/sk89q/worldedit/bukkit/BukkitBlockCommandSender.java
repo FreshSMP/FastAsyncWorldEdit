@@ -19,8 +19,7 @@
 
 package com.sk89q.worldedit.bukkit;
 
-import com.fastasyncworldedit.bukkit.FaweBukkit;
-import com.fastasyncworldedit.core.Fawe;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.extension.platform.AbstractCommandBlockActor;
@@ -197,29 +196,17 @@ public class BukkitBlockCommandSender extends AbstractCommandBlockActor {
                     // we can update eagerly
                     updateActive();
                 } else {
-                    // we should update it eventually
-                    try {
-                        FaweBukkit faweBukkit = Fawe.platform();
-                        if (faweBukkit != null && faweBukkit.getScheduler() != null) {
-                            faweBukkit.getScheduler().runTask(plugin, this::updateActive);
-                        } else {
-                            Bukkit.getScheduler().callSyncMethod(
-                                    plugin,
-                                    () -> {
-                                        updateActive();
-                                        return null;
-                                    }
-                            );
-                        }
-                    } catch (Exception e) {
-                        Bukkit.getScheduler().callSyncMethod(
-                                plugin,
-                                () -> {
-                                    updateActive();
-                                    return null;
-                                }
-                        );
+                    if (FoliaUtil.isFoliaServer()) {
+                        return active;
                     }
+                    // we should update it eventually
+                    Bukkit.getScheduler().callSyncMethod(
+                            plugin,
+                            () -> {
+                                updateActive();
+                                return null;
+                            }
+                    );
                 }
                 return active;
             }

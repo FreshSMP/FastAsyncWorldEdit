@@ -44,10 +44,10 @@ public abstract class FaweAdapter<TAG, SERVER_LEVEL> extends CachedBukkitAdapter
 
     @Override
     public boolean generateTree(
-            TreeGenerator.TreeType treeType,
-            EditSession editSession,
+            final TreeGenerator.TreeType treeType,
+            final EditSession editSession,
             BlockVector3 blockVector3,
-            World world
+            final World world
     ) {
         TreeType bukkitType = BukkitWorld.toBukkitTreeType(treeType);
         if (bukkitType == TreeType.CHORUS_PLANT) {

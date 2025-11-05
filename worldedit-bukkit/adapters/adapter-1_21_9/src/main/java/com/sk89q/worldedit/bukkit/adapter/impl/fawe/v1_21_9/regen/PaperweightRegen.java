@@ -287,6 +287,11 @@ public class PaperweightRegen extends Regenerator {
     }
 
     @Override
+    protected World getFreshWorld() {
+        return freshWorld != null ? freshWorld.getWorld() : null;
+    }
+
+    @Override
     protected IChunkCache<IChunkGet> initSourceQueueCache() {
         return new ChunkCache<>(BukkitAdapter.adapt(freshWorld.getWorld()));
     }

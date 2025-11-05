@@ -149,24 +149,18 @@ class BukkitEntityProperties implements EntityProperties {
 
     @Override
     public boolean isTamed() {
-        if (!(entity instanceof Tameable)) {
-            return false;
-        }
         if (FoliaUtil.isFoliaServer()) {
             return false;
         }
-        return ((Tameable) entity).isTamed();
+        return entity instanceof Tameable && ((Tameable) entity).isTamed();
     }
 
     @Override
     public boolean isTagged() {
-        if (!(entity instanceof LivingEntity)) {
-            return false;
-        }
         if (FoliaUtil.isFoliaServer()) {
             return false;
         }
-        return entity.customName() != null;
+        return entity instanceof LivingEntity && entity.getCustomName() != null;
     }
 
     @Override

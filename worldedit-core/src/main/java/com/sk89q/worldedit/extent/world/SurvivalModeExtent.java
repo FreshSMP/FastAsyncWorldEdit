@@ -104,16 +104,16 @@ public class SurvivalModeExtent extends AbstractDelegateExtent {
                     for (BaseItemStack stack : drops) {
                         world.dropItem(location.toVector3(), stack);
                     }
-                } else {
-                    TaskManager.taskManager().sync(new RunnableVal<>() {
-                        @Override
-                        public void run(Object value) {
-                            for (BaseItemStack stack : drops) {
-                                world.dropItem(location.toVector3(), stack);
-                            }
-                        }
-                    });
+                    return true;
                 }
+                TaskManager.taskManager().sync(new RunnableVal<>() {
+                    @Override
+                    public void run(Object value) {
+                        for (BaseItemStack stack : drops) {
+                            world.dropItem(location.toVector3(), stack);
+                        }
+                    }
+                });
 
                 return true;
             } else {

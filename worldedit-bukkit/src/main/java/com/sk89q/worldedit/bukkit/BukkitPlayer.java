@@ -21,8 +21,8 @@ package com.sk89q.worldedit.bukkit;
 
 import com.fastasyncworldedit.core.configuration.Caption;
 import com.fastasyncworldedit.core.configuration.Settings;
-import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
+import io.papermc.lib.PaperLib;
 import com.sk89q.util.StringUtil;
 import com.sk89q.wepif.VaultResolver;
 import com.sk89q.worldedit.WorldEdit;
@@ -243,20 +243,15 @@ public class BukkitPlayer extends AbstractPlayerActor {
         }
         org.bukkit.World finalWorld = world;
         //FAWE end
-        if (FoliaUtil.isFoliaServer()) {
-            try {
-                player.teleportAsync(new Location(
-                        finalWorld,
-                        pos.x(),
-                        pos.y(),
-                        pos.z(),
-                        yaw,
-                        pitch
-                )).get();
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
+        if (PaperLib.isPaper()) {
+            return player.teleportAsync(new Location(
+                    finalWorld,
+                    pos.x(),
+                    pos.y(),
+                    pos.z(),
+                    yaw,
+                    pitch
+            )).join();
         }
         return TaskManager.taskManager().sync(() -> player.teleport(new Location(
                 finalWorld,
@@ -379,13 +374,8 @@ public class BukkitPlayer extends AbstractPlayerActor {
 
     @Override
     public boolean setLocation(com.sk89q.worldedit.util.Location location) {
-        if (FoliaUtil.isFoliaServer()) {
-            try {
-                player.teleportAsync(BukkitAdapter.adapt(location)).get();
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
+        if (PaperLib.isPaper()) {
+            return player.teleportAsync(BukkitAdapter.adapt(location)).join();
         }
         return player.teleport(BukkitAdapter.adapt(location));
     }

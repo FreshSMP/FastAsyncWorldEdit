@@ -197,30 +197,23 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
 
     @Override
     public FaweCompoundTag tile(final int x, final int y, final int z) {
-        try {
-            BlockEntity blockEntity = getChunk().getBlockEntity(new BlockPos((x & 15) + (
-                    chunkX << 4), y, (z & 15) + (
-                    chunkZ << 4)));
-            if (blockEntity == null) {
-                return null;
-            }
-            return NMS_TO_TILE.apply(blockEntity);
-        } catch (NullPointerException e) {
+        BlockEntity blockEntity = getChunk().getBlockEntity(new BlockPos((x & 15) + (
+                chunkX << 4), y, (z & 15) + (
+                chunkZ << 4)));
+        if (blockEntity == null) {
             return null;
         }
+        return NMS_TO_TILE.apply(blockEntity);
+
     }
 
     @Override
     public Map<BlockVector3, FaweCompoundTag> tiles() {
-        try {
-            Map<BlockPos, BlockEntity> nmsTiles = getChunk().getBlockEntities();
-            if (nmsTiles.isEmpty()) {
-                return Collections.emptyMap();
-            }
-            return AdaptedMap.immutable(nmsTiles, posNms2We, NMS_TO_TILE);
-        } catch (NullPointerException e) {
+        Map<BlockPos, BlockEntity> nmsTiles = getChunk().getBlockEntities();
+        if (nmsTiles.isEmpty()) {
             return Collections.emptyMap();
         }
+        return AdaptedMap.immutable(nmsTiles, posNms2We, NMS_TO_TILE);
     }
 
     @Override
@@ -327,20 +320,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
     }
 
     private void removeEntity(Entity entity) {
-        if (FoliaUtil.isFoliaServer()) {
-            entity.getBukkitEntity().getScheduler().execute(
-                    WorldEditPlugin.getInstance(),
-                    () -> {
-                        if (!entity.isRemoved()) {
-                            entity.discard();
-                        }
-                    },
-                    null,
-                    1L
-            );
-        } else if (!entity.isRemoved()) {
-            entity.discard();
-        }
+        entity.discard();
     }
 
     @Override
@@ -368,11 +348,11 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
         List<BlockEntity> beacons = null;
         if (!chunkTiles.isEmpty()) {
             for (Map.Entry<BlockPos, BlockEntity> entry : chunkTiles.entrySet()) {
-                BlockPos pos = entry.getKey();
-                int lx = pos.getX() & 15;
-                int ly = pos.getY();
-                int lz = pos.getZ() & 15;
-                int layer = ly >> 4;
+                final BlockPos pos = entry.getKey();
+                final int lx = pos.getX() & 15;
+                final int ly = pos.getY();
+                final int lz = pos.getZ() & 15;
+                final int layer = ly >> 4;
                 if (!set.hasSection(layer)) {
                     continue;
                 }
@@ -380,25 +360,25 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 int ordinal = set.getBlock(lx, ly, lz).getOrdinal();
                 if (ordinal != BlockTypesCache.ReservedIDs.__RESERVED__) {
                     BlockEntity tile = entry.getValue();
-                    if (PaperLib.isPaper() && tile instanceof BeaconBlockEntity beacon) {
+                    if (PaperLib.isPaper() && tile instanceof BeaconBlockEntity) {
                         if (beacons == null) {
                             beacons = new ArrayList<>();
                         }
-                        beacons.add(beacon);
-                        Location location = new Location(
-                                nmsWorld.getWorld(),
-                                beacon.getBlockPos().getX(),
-                                beacon.getBlockPos().getY(),
-                                beacon.getBlockPos().getZ()
-                        );
+                        beacons.add(tile);
                         if (FoliaUtil.isFoliaServer()) {
+                            Location location = new Location(
+                                    nmsWorld.getWorld(),
+                                    tile.getBlockPos().getX(),
+                                    tile.getBlockPos().getY(),
+                                    tile.getBlockPos().getZ()
+                            );
                             Bukkit.getServer().getRegionScheduler().execute(
                                     WorldEditPlugin.getInstance(),
                                     location,
-                                    () -> PaperweightPlatformAdapter.removeBeacon(beacon, nmsChunk)
+                                    () -> PaperweightPlatformAdapter.removeBeacon(tile, nmsChunk)
                             );
                         } else {
-                            PaperweightPlatformAdapter.removeBeacon(beacon, nmsChunk);
+                            PaperweightPlatformAdapter.removeBeacon(tile, nmsChunk);
                         }
                         continue;
                     }
@@ -409,7 +389,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 }
             }
         }
-        BiomeType[][] biomes = set.getBiomes();
+        final BiomeType[][] biomes = set.getBiomes();
 
         int bitMask = 0;
         synchronized (nmsChunk) {
@@ -635,7 +615,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
             // Call beacon deactivate events here synchronously
             // list will be null on spigot, so this is an implicit isPaper check
             if (beacons != null && !beacons.isEmpty()) {
-                List<BlockEntity> finalBeacons = beacons;
+                final List<BlockEntity> finalBeacons = beacons;
                 syncTasks.add(() -> {
                     for (BlockEntity beacon : finalBeacons) {
                         BeaconBlockEntity.playSound(beacon.getLevel(), beacon.getBlockPos(), SoundEvents.BEACON_DEACTIVATE);
@@ -648,7 +628,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
             if (entityRemoves != null && !entityRemoves.isEmpty()) {
                 syncTasks.add(() -> {
                     Set<UUID> entitiesRemoved = new HashSet<>();
-                    List<Entity> entities = PaperweightPlatformAdapter.getEntities(nmsChunk);
+                    final List<Entity> entities = PaperweightPlatformAdapter.getEntities(nmsChunk);
 
                     for (Entity entity : entities) {
                         UUID uuid = entity.getUUID();
@@ -680,35 +660,35 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 syncTasks.add(() -> {
                     Iterator<FaweCompoundTag> iterator = entities.iterator();
                     while (iterator.hasNext()) {
-                        FaweCompoundTag nativeTag = iterator.next();
-                        LinCompoundTag linTag = nativeTag.linTag();
-                        LinStringTag idTag = linTag.findTag("Id", LinTagType.stringTag());
-                        LinListTag<LinDoubleTag> posTag = linTag.findListTag("Pos", LinTagType.doubleTag());
-                        LinListTag<LinFloatTag> rotTag = linTag.findListTag("Rotation", LinTagType.floatTag());
+                        final FaweCompoundTag nativeTag = iterator.next();
+                        final LinCompoundTag linTag = nativeTag.linTag();
+                        final LinStringTag idTag = linTag.findTag("Id", LinTagType.stringTag());
+                        final LinListTag<LinDoubleTag> posTag = linTag.findListTag("Pos", LinTagType.doubleTag());
+                        final LinListTag<LinFloatTag> rotTag = linTag.findListTag("Rotation", LinTagType.floatTag());
                         if (idTag == null || posTag == null || rotTag == null) {
                             LOGGER.error("Unknown entity tag: {}", nativeTag);
                             continue;
                         }
-                        double x = posTag.get(0).valueAsDouble();
-                        double y = posTag.get(1).valueAsDouble();
-                        double z = posTag.get(2).valueAsDouble();
-                        float yaw = rotTag.get(0).valueAsFloat();
-                        float pitch = rotTag.get(1).valueAsFloat();
-                        String id = idTag.value();
+                        final double x = posTag.get(0).valueAsDouble();
+                        final double y = posTag.get(1).valueAsDouble();
+                        final double z = posTag.get(2).valueAsDouble();
+                        final float yaw = rotTag.get(0).valueAsFloat();
+                        final float pitch = rotTag.get(1).valueAsFloat();
+                        final String id = idTag.value();
 
                         EntityType<?> type = EntityType.byString(id).orElse(null);
                         if (type != null) {
                             Entity entity = type.create(nmsWorld);
                             if (entity != null) {
-                                CompoundTag tag = (CompoundTag) adapter.fromNativeLin(linTag);
-                                for (String name : Constants.NO_COPY_ENTITY_NBT_FIELDS) {
+                                final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(linTag);
+                                for (final String name : Constants.NO_COPY_ENTITY_NBT_FIELDS) {
                                     tag.remove(name);
                                 }
                                 entity.load(tag);
                                 entity.absMoveTo(x, y, z, yaw, pitch);
                                 entity.setUUID(NbtUtils.uuid(nativeTag));
-                                Location location = new Location(nmsWorld.getWorld(), x, y, z);
                                 if (FoliaUtil.isFoliaServer()) {
+                                    Location location = new Location(nmsWorld.getWorld(), x, y, z);
                                     Bukkit.getServer().getRegionScheduler().execute(WorldEditPlugin.getInstance(), location, () -> {
                                         if (!nmsWorld.addFreshEntity(entity, CreatureSpawnEvent.SpawnReason.CUSTOM)) {
                                             LOGGER.warn(
@@ -719,6 +699,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                                                     y,
                                                     z
                                             );
+                                            // Unsuccessful create should not be saved to history
                                             iterator.remove();
                                         }
                                     });
@@ -732,6 +713,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                                                 y,
                                                 z
                                         );
+                                        // Unsuccessful create should not be saved to history
                                         iterator.remove();
                                     }
                                 }
@@ -745,37 +727,47 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
             Map<BlockVector3, FaweCompoundTag> tiles = set.tiles();
             if (tiles != null && !tiles.isEmpty()) {
                 syncTasks.add(() -> {
-                    World world = nmsWorld.getWorld();
-                    for (Map.Entry<BlockVector3, FaweCompoundTag> entry : tiles.entrySet()) {
-                        FaweCompoundTag nativeTag = entry.getValue();
-                        BlockVector3 blockHash = entry.getKey();
-                        int x = blockHash.x() + bx;
-                        int y = blockHash.y();
-                        int z = blockHash.z() + bz;
-                        BlockPos pos = new BlockPos(x, y, z);
-                        Location location = new Location(world, x, y, z);
+                    for (final Map.Entry<BlockVector3, FaweCompoundTag> entry : tiles.entrySet()) {
+                        final FaweCompoundTag nativeTag = entry.getValue();
+                        final BlockVector3 blockHash = entry.getKey();
+                        final int x = blockHash.x() + bx;
+                        final int y = blockHash.y();
+                        final int z = blockHash.z() + bz;
+                        final BlockPos pos = new BlockPos(x, y, z);
 
-                        Runnable setTile = () -> {
-                            synchronized (nmsChunk) {
-                                BlockEntity tileEntity = nmsChunk.getBlockEntity(pos);
+                        if (FoliaUtil.isFoliaServer()) {
+                            Location location = new Location(nmsWorld.getWorld(), x, y, z);
+                            Bukkit.getServer().getRegionScheduler().execute(WorldEditPlugin.getInstance(), location, () -> {
+                                synchronized (nmsWorld) {
+                                    BlockEntity tileEntity = nmsWorld.getBlockEntity(pos);
+                                    if (tileEntity == null || tileEntity.isRemoved()) {
+                                        nmsWorld.removeBlockEntity(pos);
+                                        tileEntity = nmsWorld.getBlockEntity(pos);
+                                    }
+                                    if (tileEntity != null) {
+                                        final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(nativeTag.linTag());
+                                        tag.put("x", IntTag.valueOf(x));
+                                        tag.put("y", IntTag.valueOf(y));
+                                        tag.put("z", IntTag.valueOf(z));
+                                        tileEntity.load(tag);
+                                    }
+                                }
+                            });
+                        } else {
+                            synchronized (nmsWorld) {
+                                BlockEntity tileEntity = nmsWorld.getBlockEntity(pos);
                                 if (tileEntity == null || tileEntity.isRemoved()) {
-                                    nmsChunk.removeBlockEntity(pos);
-                                    tileEntity = nmsChunk.getBlockEntity(pos);
+                                    nmsWorld.removeBlockEntity(pos);
+                                    tileEntity = nmsWorld.getBlockEntity(pos);
                                 }
                                 if (tileEntity != null) {
-                                    CompoundTag tag = (CompoundTag) adapter.fromNativeLin(nativeTag.linTag());
+                                    final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(nativeTag.linTag());
                                     tag.put("x", IntTag.valueOf(x));
                                     tag.put("y", IntTag.valueOf(y));
                                     tag.put("z", IntTag.valueOf(z));
                                     tileEntity.load(tag);
                                 }
                             }
-                        };
-
-                        if (FoliaUtil.isFoliaServer()) {
-                            Bukkit.getServer().getRegionScheduler().execute(WorldEditPlugin.getInstance(), location, setTile);
-                        } else {
-                            setTile.run();
                         }
                     }
                 });
