@@ -202,23 +202,28 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
 
     @Override
     public FaweCompoundTag tile(final int x, final int y, final int z) {
-        BlockEntity blockEntity = getChunk().getBlockEntity(new BlockPos((x & 15) + (
-                chunkX << 4), y, (z & 15) + (
-                chunkZ << 4)));
-        if (blockEntity == null) {
-            return null;
-        }
-        return NMS_TO_TILE.apply(blockEntity);
+        LevelChunk chunk = getChunk();
+        if (chunk == null) return null;
 
+        BlockPos pos = new BlockPos((x & 15) + (chunkX << 4), y, (z & 15) + (chunkZ << 4));
+        Map<BlockPos, BlockEntity> tiles = chunk.getBlockEntities();
+        if (tiles == null) return null;
+
+        BlockEntity blockEntity = tiles.get(pos);
+        if (blockEntity == null) return null;
+
+        return NMS_TO_TILE.apply(blockEntity);
     }
 
     @Override
     public Map<BlockVector3, FaweCompoundTag> tiles() {
-        Map<BlockPos, BlockEntity> nmsTiles = getChunk().getBlockEntities();
-        if (nmsTiles.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return AdaptedMap.immutable(nmsTiles, posNms2We, NMS_TO_TILE);
+        LevelChunk chunk = getChunk();
+        if (chunk == null) return Collections.emptyMap();
+
+        Map<BlockPos, BlockEntity> tiles = chunk.getBlockEntities();
+        if (tiles == null || tiles.isEmpty()) return Collections.emptyMap();
+
+        return AdaptedMap.immutable(tiles, posNms2We, NMS_TO_TILE);
     }
 
     @Override
