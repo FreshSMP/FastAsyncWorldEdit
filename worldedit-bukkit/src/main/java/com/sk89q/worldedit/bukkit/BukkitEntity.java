@@ -30,7 +30,6 @@ import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.util.Location;
 import com.sk89q.worldedit.world.NullWorld;
 import io.papermc.lib.PaperLib;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.EntityType;
 
 import javax.annotation.Nullable;
@@ -109,13 +108,32 @@ public class BukkitEntity implements Entity {
             BukkitImplAdapter adapter = WorldEditPlugin.getInstance().getBukkitImplAdapter();
             if (adapter != null) {
                 if (FoliaUtil.isFoliaServer()) {
-                    org.bukkit.Location location = entity.getLocation();
                     CompletableFuture<BaseEntity> future = new CompletableFuture<>();
-                    Bukkit.getServer().getRegionScheduler().run(
+                    // Use entity scheduler (not region scheduler) to guarantee we run on
+                    // the entity's owning region thread. regionScheduler.run(location) would
+                    // target the region that owns that location, which may differ from the
+                    // region that owns the entity itself, causing Folia thread-check failures.
+                    boolean scheduled = entity.getScheduler().execute(
                             WorldEditPlugin.getInstance(),
-                            location,
-                            scheduledTask -> future.complete(adapter.getEntity(entity))
+                            () -> {
+                                BaseEntity base = adapter.getEntity(entity);
+                                // Force-evaluate the lazy NBT tag while we are still on the
+                                // entity's region thread. LazyBaseEntity.getNbt() would otherwise
+                                // run the supplier via TaskManager.sync(), which on Folia is a
+                                // no-op and executes on whatever (async) thread calls it later.
+                                if (base != null) {
+                                    base.getNbt();
+                                }
+                                future.complete(base);
+                            },
+                            () -> future.complete(null), // retired: entity was removed
+                            1L
                     );
+                    if (!scheduled) {
+                        // Entity scheduler rejected the task (e.g. plugin disabled); fall back
+                        // to returning null so the copy operation skips this entity cleanly.
+                        return null;
+                    }
                     return future.join();
                 }
                 return adapter.getEntity(entity);
