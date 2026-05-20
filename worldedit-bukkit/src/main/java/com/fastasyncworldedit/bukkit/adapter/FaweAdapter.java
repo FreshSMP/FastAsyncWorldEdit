@@ -43,6 +43,11 @@ public abstract class FaweAdapter<TAG, SERVER_LEVEL> extends CachedBukkitAdapter
     }
 
     @Override
+    public void initializeRegistries() {
+        parent.initializeRegistries();
+    }
+
+    @Override
     public boolean generateTree(
             final TreeGenerator.TreeType treeType,
             final EditSession editSession,
